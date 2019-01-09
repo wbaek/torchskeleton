@@ -35,7 +35,7 @@ jobs:
           name: run tests
           command: |
             . venv/bin/activate
-            pip install git+https://github.com/wbaek/pytorch_skeleton.git
+            pip install git+https://github.com/wbaek/pytorch_skeleton.git@{{ .Branch }}
             pip install pytest pytest-cov pytest-datafiles
             rm -rf skeleton
             py.test --junit-xml test-reports/junit.xml --cov=skeleton --cov-report=html tests
@@ -136,5 +136,4 @@ workflows:
   build_and_test:
     jobs:
       - test_pip_install
-      - build_python2
       - build_python3

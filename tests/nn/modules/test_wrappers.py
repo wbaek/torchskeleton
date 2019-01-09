@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import torch
 import numpy as np
+from torch.nn import functional
 
 from skeleton.nn.modules.wrappers import Identity, Mul, Add, Concat, Flatten, GlobalPool
 
@@ -56,5 +57,5 @@ def test_global_pool():
     y = GlobalPool()(torch.Tensor(x))
     assert y.shape == (128, 3, 1, 1)
 
-    y = GlobalPool(F.adaptive_max_pool2d)(torch.Tensor(x))
+    y = GlobalPool(functional.adaptive_max_pool2d)(torch.Tensor(x))
     assert y.shape == (128, 3, 1, 1)
