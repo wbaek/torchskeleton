@@ -52,6 +52,7 @@ def main(args):
 
     batch_size = args.batch
     train_loader, valid_loader, test_loader, data_shape = skeleton.datasets.Cifar.loader(batch_size, args.num_class)
+    _ = test_loader
 
     model = BasicNet(args.num_class).to(device=device)
     if torch.cuda.is_available():
