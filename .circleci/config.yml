@@ -14,8 +14,8 @@ jobs:
 
       - restore_cache:
           keys:
-          - python3-pip-dependencies-{{ checksum "requirements.txt" }}
-          - python3-pip-dependencies-
+          - python3-dependencies-pip-{{ checksum "requirements.txt" }}
+          - python3-dependencies-pip-
 
       - run:
           name: install dependencies
@@ -25,18 +25,18 @@ jobs:
             sudo apt-get update
             sudo apt-get install -y libcap-dev
             pip install --upgrade setuptools
+            pip install pytest pytest-cov pytest-datafiles
 
       - save_cache:
           paths:
             - ./venv
-          key: python3-pip-dependencies-{{ checksum "requirements.txt" }}
+          key: python3-dependencies-pip-{{ checksum "requirements.txt" }}
 
       - run:
           name: run tests
           command: |
             . venv/bin/activate
-            pip install git+https://github.com/wbaek/pytorch_skeleton.git
-            pip install pytest pytest-cov pytest-datafiles
+            pip install git+https://github.com/wbaek/pytorch_skeleton.git@${CIRCLE_BRANCH}
             rm -rf skeleton
             py.test --junit-xml test-reports/junit.xml --cov=skeleton --cov-report=html tests
 
@@ -136,5 +136,4 @@ workflows:
   build_and_test:
     jobs:
       - test_pip_install
-      - build_python2
       - build_python3
