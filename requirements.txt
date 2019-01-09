@@ -9,5 +9,5 @@ opencv-python>=3.4.5
 pytest>=4.0.0
 pytest-cov>=2.6.0
 pytest-datafiles>=2.0
-pylint>=2.2.0
+pylint>=1.9.0
 coverage>=4.5.0
