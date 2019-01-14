@@ -51,8 +51,7 @@ def main(args):
     device = torch.device('cuda', 0) if torch.cuda.is_available() else torch.device('cpu', 0)
 
     batch_size = args.batch
-    train_loader, valid_loader, test_loader, data_shape = skeleton.datasets.Cifar.loader(batch_size, args.num_class)
-    _ = test_loader
+    train_loader, valid_loader, data_shape = skeleton.datasets.Cifar.loader(batch_size, args.num_class)
 
     model = BasicNet(args.num_class).to(device=device)
     if torch.cuda.is_available():
