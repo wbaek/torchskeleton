@@ -17,7 +17,10 @@ class IOModule(nn.Module):  # pylint: disable=abstract-method
         return copy.deepcopy(self)
 
     def save(self, filepath):
-        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        try:
+            os.makedirs(os.path.dirname(filepath))
+        except OSError:
+            pass  # already path exists
         torch.save(self.state_dict(), filepath)
         return self
 
