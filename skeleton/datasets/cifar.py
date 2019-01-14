@@ -44,4 +44,3 @@ class Cifar:
         test_loader = torch.utils.data.DataLoader(test_set, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=True, drop_last=False)
 
         return train_loader, test_loader, data_shape
-

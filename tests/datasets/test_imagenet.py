@@ -7,8 +7,8 @@ def test_imagenet_dataset():
     assert data_shape == [(1, 3, 224, 224), (1,)]
 
     train_loader, valid_loader, data_shape = Imagenet.loader(1)
-    assert len(train_loader) == 50000
-    assert len(valid_loader) == 10000
+    assert len(train_loader) == 1281167
+    assert len(valid_loader) == 50000
 
     inputs, targets = next(iter(train_loader))
     assert (inputs.shape) == data_shape[0]
