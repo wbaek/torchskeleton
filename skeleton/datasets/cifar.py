@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 import logging
 
-import skorch
-import numpy as np
 import torch
 import torchvision as tv
 

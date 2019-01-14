@@ -151,3 +151,4 @@ workflows:
     jobs:
       - test_pip_install
       - build_python3
+      - build_python2
