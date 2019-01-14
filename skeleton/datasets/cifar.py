@@ -18,7 +18,7 @@ class Cifar:
         assert num_classes in [10, 100]
 
         dataset = tv.datasets.CIFAR10 if num_classes == 10 else tv.datasets.CIFAR100
-        data_shape = [(batch_size, 3, 32, 32), (batch_size, 1)]
+        data_shape = [(batch_size, 3, 32, 32), (batch_size,)]
 
         transform_train = tv.transforms.Compose([
             tv.transforms.Pad(4, padding_mode='reflect'),

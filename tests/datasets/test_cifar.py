@@ -4,10 +4,10 @@ from skeleton.datasets.cifar import Cifar
 
 def test_cifar_dataset():
     train_set, valid_set, data_shape = Cifar.sets(1, num_classes=10)
-    assert data_shape == [(1, 3, 32, 32), (1, 1)]
+    assert data_shape == [(1, 3, 32, 32), (1,)]
 
     train_set, valid_set, data_shape = Cifar.sets(1, num_classes=100)
-    assert data_shape == [(1, 3, 32, 32), (1, 1)]
+    assert data_shape == [(1, 3, 32, 32), (1,)]
 
     train_loader, valid_loader, data_shape = Cifar.loader(1, num_classes=10)
     assert len(train_loader) == 50000
