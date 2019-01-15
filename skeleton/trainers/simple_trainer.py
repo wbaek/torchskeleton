@@ -10,7 +10,7 @@ import torch
 LOGGER = logging.getLogger(__name__)
 
 
-class SimpleTrainer():
+class SimpleTrainer:
     def __init__(self, module, optimizer, loss_fn, metric_fns=None):
         self.module = module
         self.optimizer = optimizer
@@ -23,6 +23,7 @@ class SimpleTrainer():
 
     def forward(self, inputs, targets):
         logits = self.module(inputs)
+        targets = targets.to(device=logits.device)
         loss = self.loss_fn(logits, targets)
 
         metrics = {name: m(logits, targets) for name, m in self.metric_fns.items()} if self.metric_fns is not None else {}
