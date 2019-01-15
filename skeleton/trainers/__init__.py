@@ -2,6 +2,6 @@
 # pylint: disable=wildcard-import
 from __future__ import absolute_import
 
-from .nn import *
-from .trainers import *
-from .datasets import *
+from .metrics import Accuracy, AccuracyMany
+
+from .simple_trainer import SimpleTrainer

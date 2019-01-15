@@ -60,20 +60,19 @@ def main(args):
 
     optimizer = torch.optim.SGD(model.parameters(), lr=1e-4 * batch_size, momentum=0.9)
 
+    trainer = skeleton.trainers.SimpleTrainer(
+        model,
+        optimizer,
+        loss_fn=F.cross_entropy,
+        metric_fns={
+            'accuracy_top1': skeleton.trainers.metrics.Accuracy(topk=1),
+            'accuracy_top5': skeleton.trainers.metrics.Accuracy(topk=5),
+        }
+    )
+
     for epoch in range(args.epoch):
-        for batch_idx, (inputs, targets) in enumerate(train_loader):
-            logits = model(inputs)
-            loss = F.cross_entropy(logits, targets)
-
-            loss.backward()
-            optimizer.step()
-            optimizer.zero_grad()
-            logging.info('[train] [epoch:%04d/%04d] [step:%04d/%04d] loss: %.5f', epoch, args.epoch, batch_idx, len(train_loader), float(loss))
-
-        with torch.no_grad():
-            losses = [float(F.cross_entropy(model(inputs), targets)) for inputs, targets in valid_loader]
-            loss = np.average(losses)
-            logging.info('[vaild] [epoch:%04d/%04d]                  loss: %.5f', epoch, args.epoch, loss)
+        trainer.epoch(train_loader, is_training=True)
+        trainer.epoch(valid_loader, is_training=False)
 
 
 if __name__ == '__main__':
