@@ -54,7 +54,8 @@ class Imagenet(torch.utils.data.Dataset):
         self.train = train  # training set or test set
 
         data_path = os.path.abspath(os.path.dirname(os.path.abspath(__file__)) + '/datas/ILSVRC/classification/')
-        temp_map = json.load(open(data_path + '/imagenet1000_classid_to_text_synsetid.json'))
+        with open(data_path + '/imagenet1000_classid_to_text_synsetid.json') as f:
+            temp_map = json.load(f)
         self._maps = {
             'idx2synset': {int(key): value['id'] for key, value in iter(temp_map.items())},
             'synset2idx': {value['id']: int(key) for key, value in iter(temp_map.items())},
