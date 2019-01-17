@@ -53,7 +53,7 @@ class Imagenet(torch.utils.data.Dataset):
         self.target_transform = target_transform
         self.train = train  # training set or test set
 
-        data_path = os.path.abspath(os.path.dirname(os.path.abspath(__file__)) + '/datas/ILSVRC/classification/')
+        data_path = os.path.abspath(os.path.dirname(__file__) + '/datas/ILSVRC/classification/')
         with open(data_path + '/imagenet1000_classid_to_text_synsetid.json') as f:
             temp_map = json.load(f)
         self._maps = {
