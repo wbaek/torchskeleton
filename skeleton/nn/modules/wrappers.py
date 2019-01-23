@@ -2,9 +2,9 @@
 # pylint: disable=arguments-differ
 from __future__ import absolute_import
 import logging
+from collections import OrderedDict
 
 import torch
-from torch.nn import functional as F
 
 LOGGER = logging.getLogger(__name__)
 
@@ -23,9 +23,9 @@ class Mul(torch.nn.Module):
         return x * self.weight
 
 
-class Add(torch.nn.Module):
-    def forward(self, x, y):
-        return x + y
+class Flatten(torch.nn.Module):
+    def forward(self, x):
+        return x.view(x.size(0), -1)
 
 
 class Concat(torch.nn.Module):
@@ -37,16 +37,30 @@ class Concat(torch.nn.Module):
         return torch.cat(xs, dim=self.dim)
 
 
-class Flatten(torch.nn.Module):
+class MergeSum(torch.nn.Module):
+    def __init__(self, weight=None):
+        super(MergeSum, self).__init__()
+        self.weight = torch.Tensor(weight) if weight is not None else None
+
+    def forward(self, *xs):
+        if type(xs[0]) in (tuple, list):
+            xs = xs[0]
+        if self.weight is None:
+            self.weight = torch.ones(len(xs))
+        original_shape = xs[0].shape
+        num_inputs = len(xs)
+        return torch.mm(self.weight.view(1, -1), torch.stack(xs).view(num_inputs, -1)).view(original_shape)
+
+
+class Split(torch.nn.Module):
+    def __init__(self, *modules):
+        super(Split, self).__init__()
+        if len(modules) == 1 and isinstance(modules[0], OrderedDict):
+            for key, module in modules[0].items():
+                self.add_module(key, module)
+        else:
+            for idx, module in enumerate(modules):
+                self.add_module(str(idx), module)
+
     def forward(self, x):
-        return x.view(x.size(0), -1)
-
-
-class GlobalPool(torch.nn.Module):
-    def __init__(self, method=F.adaptive_avg_pool2d):
-        super(GlobalPool, self).__init__()
-        self.method = method
-
-    def forward(self, x):
-        x = self.method(x, (1, 1))
-        return x
+        return [m(x) for m in self._modules.values()]

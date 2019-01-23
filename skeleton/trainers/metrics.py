@@ -8,11 +8,12 @@ import torch
 LOGGER = logging.getLogger(__name__)
 
 
-class AccuracyMany():
+class AccuracyMany(torch.nn.Module):
     def __init__(self, topk=(1, )):
+        super(AccuracyMany, self).__init__()
         self.topk = topk
 
-    def __call__(self, output, target):
+    def forward(self, output, target):
         with torch.no_grad():
             maxk = max(self.topk)
             batch_size = target.size(0)
@@ -32,7 +33,7 @@ class Accuracy(AccuracyMany):
     def __init__(self, topk=1):
         super(Accuracy, self).__init__((topk, ))
 
-    def __call__(self, output, target):
-        res = super(Accuracy, self).__call__(output, target)
+    def forward(self, output, target):
+        res = super(Accuracy, self).forward(output, target)
         return res[0]
 
