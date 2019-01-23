@@ -36,4 +36,3 @@ class Accuracy(AccuracyMany):
     def forward(self, output, target):
         res = super(Accuracy, self).forward(output, target)
         return res[0]
-

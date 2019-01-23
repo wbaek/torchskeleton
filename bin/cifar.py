@@ -81,11 +81,11 @@ class BasicNet(skeleton.nn.modules.IOModule):
 
     def print_architecture(self):
         for name, module in self.layers.named_modules():
-            if name is '':
+            if name == '':
                 continue
             split = name.split('.')
             indent = '\t' * (len(split) - 1)
-            class_name = module.__class__.__name__ if module.__class__.__name__ is not 'Sequential' else ''
+            class_name = module.__class__.__name__ if not module.__class__.__name__ == 'Sequential' else ''
             print(indent, split[-1], class_name)
 
     def register_verbose_hooks(self):
@@ -101,7 +101,7 @@ class BasicNet(skeleton.nn.modules.IOModule):
         return self
 
     def remove_verbose_hooks(self):
-        [h.remove() for h in self.handles]
+        _ = [h.remove() for h in self.handles]
         self.handles = []
         return self
 
@@ -140,7 +140,7 @@ def main(args):
         trainer.epoch(valid_loader, is_training=False)
         if epoch % 10 == 0:
             trainer.epoch(test_loader, is_training=False, desc='[test] [epoch:%04d]' % epoch)
-    trainer.epoch(test_loader, is_training=False, desc='[test]' % epoch)
+    trainer.epoch(test_loader, is_training=False, desc='[test]')
 
 
 if __name__ == '__main__':

@@ -43,7 +43,7 @@ class MergeSum(torch.nn.Module):
         self.weight = torch.Tensor(weight) if weight is not None else None
 
     def forward(self, *xs):
-        if type(xs[0]) in (tuple, list):
+        if isinstance(xs[0], (tuple, list)):
             xs = xs[0]
         if self.weight is None:
             self.weight = torch.ones(len(xs))

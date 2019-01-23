@@ -74,4 +74,3 @@ def test_split():
     assert (x == y2.numpy()).all()
     assert (x * 0.5 == y3.numpy()).all()
     assert (x * 1.5 == y4.numpy()).all()
-
