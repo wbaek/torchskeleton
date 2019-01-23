@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
+from __future__ import absolute_import
 import logging
 
 import torch
 import torchvision as tv
+
+from .transforms import Cutout
 
 LOGGER = logging.getLogger(__name__)
 
@@ -24,6 +27,7 @@ class Cifar:
             tv.transforms.RandomHorizontalFlip(),
             tv.transforms.ToTensor(),
             tv.transforms.Normalize(CIFAR_MEAN, CIFAR_STD),
+            Cutout(16),
         ])
         transform_valid = tv.transforms.Compose([
             tv.transforms.ToTensor(),
