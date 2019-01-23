@@ -12,7 +12,7 @@ from torch import nn
 LOGGER = logging.getLogger(__name__)
 
 
-class IOModule(nn.Module):  # pylint: disable=abstract-method
+class IOModule(nn.Module):
     def copy(self):
         return copy.deepcopy(self)
 

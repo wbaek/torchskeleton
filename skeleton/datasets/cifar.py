@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
+from __future__ import absolute_import
 import logging
 
 import torch
 import torchvision as tv
+
+from .transforms import Cutout
 
 LOGGER = logging.getLogger(__name__)
 
@@ -24,6 +27,7 @@ class Cifar:
             tv.transforms.RandomHorizontalFlip(),
             tv.transforms.ToTensor(),
             tv.transforms.Normalize(CIFAR_MEAN, CIFAR_STD),
+            Cutout(16),
         ])
         transform_valid = tv.transforms.Compose([
             tv.transforms.ToTensor(),
@@ -35,10 +39,20 @@ class Cifar:
         return train_set, test_set, data_shape
 
     @staticmethod
-    def loader(batch_size, num_classes=10, root='./data', num_workers=8):
+    def loader(batch_size, num_classes=10, cv_ratio=0.0, root='./data', num_workers=8):
+        assert cv_ratio < 1.0
+        EPS = 1e-5
         train_set, test_set, data_shape = Cifar.sets(batch_size, num_classes=num_classes, root=root)
+
+        if cv_ratio > 0.0:
+            num_train_set = int(len(train_set) * (1 - cv_ratio) + EPS)
+            num_valid_set = len(train_set) - num_train_set
+            train_set, valid_set = torch.utils.data.random_split(train_set, [num_train_set, num_valid_set])
 
         train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True, drop_last=True)
         test_loader = torch.utils.data.DataLoader(test_set, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=True, drop_last=False)
+        if cv_ratio > 0.0:
+            valid_loader = torch.utils.data.DataLoader(valid_set, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True, drop_last=False)
+            return train_loader, valid_loader, test_loader, data_shape
 
         return train_loader, test_loader, data_shape
