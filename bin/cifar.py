@@ -50,7 +50,7 @@ def main(args):
     device = torch.device('cuda', 0) if torch.cuda.is_available() else torch.device('cpu', 0)
 
     batch_size = args.batch
-    train_loader, valid_loader, data_shape = skeleton.datasets.Cifar.loader(batch_size, args.num_class)
+    train_loader, valid_loader, test_loader, data_shape = skeleton.datasets.Cifar.loader(batch_size, args.num_class)
 
     model = BasicNet(args.num_class).to(device=device)
     model(torch.Tensor(*data_shape[0]).to(device=device), verbose=True)
@@ -67,9 +67,11 @@ def main(args):
             'accuracy_top5': skeleton.trainers.metrics.Accuracy(topk=5),
         }
     )
-    for epoch in range(args.epoch):
+    for epoch in range(1, args.epoch):
         trainer.epoch(train_loader, is_training=True)
         trainer.epoch(valid_loader, is_training=False)
+        if epoch % 10 == 0:
+            trainer.epoch(test_loader, is_training=False, desc='[test] [epoch:%04d]' % epoch)
 
 
 if __name__ == '__main__':
