@@ -38,18 +38,17 @@ class Concat(torch.nn.Module):
 
 
 class MergeSum(torch.nn.Module):
-    def __init__(self, weight=None):
+    def __init__(self, num_inputs):
         super(MergeSum, self).__init__()
-        self.weight = torch.Tensor(weight) if weight is not None else None
+        self.register_buffer('weight', torch.ones([1, num_inputs], dtype=torch.float32))
 
     def forward(self, *xs):
         if isinstance(xs[0], (tuple, list)):
             xs = xs[0]
-        if self.weight is None:
-            self.weight = torch.ones(len(xs))
+
         original_shape = xs[0].shape
         num_inputs = len(xs)
-        return torch.mm(self.weight.view(1, -1), torch.stack(xs).view(num_inputs, -1)).view(original_shape)
+        return torch.mm(self.weight, torch.stack(xs).view(num_inputs, -1)).view(original_shape)
 
 
 class Split(torch.nn.Module):
