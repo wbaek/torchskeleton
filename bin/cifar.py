@@ -14,7 +14,7 @@ sys.path.append(base_dir)
 import skeleton
 
 
-class BasicNet(skeleton.nn.modules.MoveToModule, skeleton.nn.modules.VerboseModule):
+class BasicNet(skeleton.nn.modules.VerboseModule):
     def __init__(self, num_classes=10):
         super(BasicNet, self).__init__()
         self.handles = []
@@ -101,19 +101,22 @@ def main(args):
     np.random.seed(0xC0FFEE)
     torch.manual_seed(0xC0FFEE)
 
-    batch_size = args.batch
+    batch_size = args.batch * args.gpus
     train_loader, test_loader, data_shape = skeleton.datasets.Cifar.loader(
         batch_size, args.num_class,
         cv_ratio=0.0, cutout_length=8
     )
 
     model = BasicNet(args.num_class).to(device=device).half()
+    move_to_device_hook_handle = model.register_forward_pre_hook(
+        skeleton.nn.hooks.MoveToHook.get_forward_pre_hook(device=device, half=True)
+    )
     if args.debug:
         print('---------- architecture ---------- ')
         model.print_architecture()
         print('---------- forward steps ---------- ')
         model.register_verbose_hooks()
-        _ = model(torch.Tensor(*data_shape[0]).to(device=device).half())
+        _ = model(torch.Tensor(*data_shape[0]))
         model.remove_verbose_hooks()
         print('---------- done ---------- ')
 
@@ -125,6 +128,10 @@ def main(args):
         momentum=0.9, weight_decay=1e-5 * batch_size, nesterov=True
     )
 
+    if args.gpus > 1:
+        model = torch.nn.DataParallel(model, device_ids=list(range(args.gpus)), output_device=0)
+        move_to_device_hook_handle.remove()
+
     trainer = skeleton.trainers.SimpleTrainer(
         model,
         optimizer,
@@ -134,7 +141,7 @@ def main(args):
         }
     )
     trainer.warmup(
-        torch.Tensor(np.random.rand(*data_shape[0])).half(),
+        torch.Tensor(np.random.rand(*data_shape[0])),
         torch.LongTensor(np.random.randint(0, 10, data_shape[1][0]))
     )
     for epoch in range(1, args.epoch):
@@ -150,7 +157,7 @@ if __name__ == '__main__':
     parser.add_argument('-c', '--num-class', type=int, default=10, help='10 or 100')
     parser.add_argument('-b', '--batch', type=int, default=256)
     parser.add_argument('-e', '--epoch', type=int, default=25)
-    #parser.add_argument('--gpus', type=int, default=torch.cuda.device_count())
+    parser.add_argument('--gpus', type=int, default=1)#torch.cuda.device_count())
 
     parser.add_argument('--log-filename', type=str, default='')
     parser.add_argument('--debug', action='store_true')
