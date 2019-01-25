@@ -14,6 +14,25 @@ class Identity(torch.nn.Module):
         return x
 
 
+class FactorizedReduce(torch.nn.Module):
+    def __init__(self, in_channels, out_channels, stride=2):
+        assert stride == 2
+        super(FactorizedReduce, self).__init__()
+        out_channels1 = out_channels // 2
+        out_channels2 = out_channels - out_channels1
+
+        self.conv1 = torch.nn.Conv2d(in_channels, out_channels1, kernel_size=1, stride=stride, padding=0, bias=False)
+        self.conv2 = torch.nn.Conv2d(in_channels, out_channels2, kernel_size=1, stride=stride, padding=0, bias=False)
+        self.post = torch.nn.Sequential(
+            torch.nn.BatchNorm2d(out_channels),
+        )
+
+    def forward(self, x):
+        x = torch.cat([self.conv1(x), self.conv2(x[:, :, 1:, 1:])], dim=1)
+        x = self.post(x)
+        return x
+
+
 class Mul(torch.nn.Module):
     def __init__(self, weight):
         super(Mul, self).__init__()

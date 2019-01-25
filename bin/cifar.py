@@ -15,63 +15,51 @@ import skeleton
 
 
 class BasicNet(skeleton.nn.modules.VerboseModule):
-    def __init__(self, num_classes=10):
+    def __init__(self, depth=4, num_classes=10):
         super(BasicNet, self).__init__()
         self.handles = []
-        self.layers = torch.nn.Sequential(OrderedDict([
+        layers = [
             ('embed', torch.nn.Sequential(
                 torch.nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False),
                 torch.nn.BatchNorm2d(64),
-                torch.nn.ReLU(inplace=True),
+                torch.nn.LeakyReLU(inplace=True),
             )),
-            ('conv1', torch.nn.Sequential(
-                torch.nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1, bias=False),
-                torch.nn.BatchNorm2d(128),
-                torch.nn.ReLU(inplace=True),
-                torch.nn.MaxPool2d(kernel_size=2, stride=2),
-                skeleton.nn.Split(OrderedDict([
-                    ('skip', skeleton.nn.Identity()),
-                    ('deep', torch.nn.Sequential(
-                        torch.nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1, bias=False),
-                        torch.nn.BatchNorm2d(128),
-                        torch.nn.ReLU(inplace=True),
-                        torch.nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1, bias=False),
-                        torch.nn.BatchNorm2d(128),
-                        torch.nn.ReLU(inplace=True),
-                    ))
-                ])),
-                skeleton.nn.MergeSum(num_inputs=2)
-            )),
-            ('conv2', torch.nn.Sequential(
-                torch.nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1, bias=False),
-                torch.nn.BatchNorm2d(256),
-                torch.nn.ReLU(inplace=True),
-                torch.nn.MaxPool2d(kernel_size=2, stride=2),
-            )),
-            ('conv3', torch.nn.Sequential(
-                torch.nn.Conv2d(256, 512, kernel_size=3, stride=1, padding=1, bias=False),
-                torch.nn.BatchNorm2d(512),
-                torch.nn.ReLU(inplace=True),
-                torch.nn.MaxPool2d(kernel_size=2, stride=2),
-                skeleton.nn.Split(OrderedDict([
-                    ('skip', skeleton.nn.Identity()),
-                    ('deep', torch.nn.Sequential(
-                        torch.nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1, bias=False),
-                        torch.nn.BatchNorm2d(512),
-                        torch.nn.ReLU(inplace=True),
-                        torch.nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1, bias=False),
-                        torch.nn.BatchNorm2d(512),
-                        torch.nn.ReLU(inplace=True),
-                    ))
-                ])),
-                skeleton.nn.MergeSum(num_inputs=2)
-            )),
-            ('global_pool', torch.nn.AdaptiveAvgPool2d((1, 1))),
+        ]
+
+        stride = 1
+        in_channels, out_channels = 64, 64
+        for i in range(1, depth+1):
+            if i in [1*depth//4, 2*depth//4, 3*depth//4]:
+                stride = 2
+                out_channels *= 2
+            layers.append(
+                ('conv%02d'%i, torch.nn.Sequential(
+                    skeleton.nn.Split(OrderedDict([
+                        ('skip', skeleton.nn.Identity() if in_channels == out_channels else skeleton.nn.FactorizedReduce(in_channels, out_channels)),
+                        ('deep', torch.nn.Sequential(
+                            torch.nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=1, bias=False),
+                            torch.nn.BatchNorm2d(out_channels),
+                            torch.nn.LeakyReLU(inplace=True),
+                            torch.nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1, bias=False),
+                            torch.nn.BatchNorm2d(out_channels),
+                        ))
+                    ])),
+                    skeleton.nn.MergeSum(num_inputs=2),
+                    torch.nn.LeakyReLU(inplace=True),
+                ))
+            )
+            stride, in_channels, out_channels = 1, out_channels, out_channels
+
+        layers.append(
+            ('global_pool', torch.nn.AdaptiveAvgPool2d((1, 1)))
+        )
+        layers.append(
             ('linear', torch.nn.Sequential(
                 skeleton.nn.Flatten(),
-                torch.nn.Linear(512, num_classes),
-            )),
-        ]))
+                torch.nn.Linear(out_channels, num_classes),
+            ))
+        )
+        self.layers = torch.nn.Sequential(OrderedDict(layers))
         self.loss_fn = torch.nn.CrossEntropyLoss(reduction='mean')
 
     def forward(self, inputs, targets=None):  # pylint: disable=arguments-differ
@@ -86,8 +74,7 @@ class BasicNet(skeleton.nn.modules.VerboseModule):
         return logits, loss
 
     def half(self):
-        #super(BasicNet, self).half()
-        self.is_half = True
+        # super(BasicNet, self).half()
         for module in self.children():
             if not isinstance(module, torch.nn.BatchNorm2d):
                 module.half()
@@ -107,17 +94,20 @@ def main(args):
         cv_ratio=0.0, cutout_length=8
     )
 
-    model = BasicNet(args.num_class).to(device=device).half()
-    move_to_device_hook_handle = model.register_forward_pre_hook(
-        skeleton.nn.hooks.MoveToHook.get_forward_pre_hook(device=device, half=True)
-    )
+    model = BasicNet(depth=args.depth, num_classes=args.num_class)
+    model = torch.nn.DataParallel(model, device_ids=list(range(args.gpus)), output_device=0)
+
+    model.to(device=device)
+    model.register_forward_pre_hook(skeleton.nn.hooks.MoveToHook.get_forward_pre_hook(device=device, half=False))
     if args.debug:
         print('---------- architecture ---------- ')
-        model.print_architecture()
+        model.module.print_architecture()
         print('---------- forward steps ---------- ')
-        model.register_verbose_hooks()
-        _ = model(torch.Tensor(*data_shape[0]))
-        model.remove_verbose_hooks()
+        model.module.register_verbose_hooks()
+        handle = model.module.register_forward_pre_hook(skeleton.nn.hooks.MoveToHook.get_forward_pre_hook(device=device, half=False))
+        _ = model.module(torch.Tensor(*data_shape[0]))
+        model.module.remove_verbose_hooks()
+        handle.remove()
         print('---------- done ---------- ')
 
     optimizer = skeleton.optim.ScheduledOptimzer(
@@ -125,12 +115,8 @@ def main(args):
         torch.optim.SGD,
         steps_per_epoch=len(train_loader),
         lr=lambda e: float(np.interp([e], [0, 5, args.epoch+1], [0, 0.0001, 0])) * batch_size,
-        momentum=0.9, weight_decay=1e-5 * batch_size, nesterov=True
+        momentum=0.9, weight_decay=1e-6 * batch_size, nesterov=True
     )
-
-    if args.gpus > 1:
-        model = torch.nn.DataParallel(model, device_ids=list(range(args.gpus)), output_device=0)
-        move_to_device_hook_handle.remove()
 
     trainer = skeleton.trainers.SimpleTrainer(
         model,
@@ -146,7 +132,7 @@ def main(args):
     )
     for epoch in range(1, args.epoch):
         trainer.epoch(train_loader, is_training=True, verbose=args.debug)
-        if epoch % 10 == 0:
+        if args.debug:
             trainer.epoch(test_loader, is_training=False, verbose=args.debug)
     trainer.epoch(test_loader, is_training=False, verbose=args.debug, desc='[final]')
 
@@ -154,14 +140,18 @@ def main(args):
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
+    parser.add_argument('-d', '--depth', type=int, default=8)
     parser.add_argument('-c', '--num-class', type=int, default=10, help='10 or 100')
     parser.add_argument('-b', '--batch', type=int, default=256)
     parser.add_argument('-e', '--epoch', type=int, default=25)
-    parser.add_argument('--gpus', type=int, default=1)#torch.cuda.device_count())
+    parser.add_argument('--gpus', type=int, default=torch.cuda.device_count())
 
     parser.add_argument('--log-filename', type=str, default='')
     parser.add_argument('--debug', action='store_true')
     parsed_args = parser.parse_args()
+
+    parsed_args.gpus = 4
+    parsed_args.debug = True
 
     log_format = '[%(asctime)s %(levelname)s] %(message)s'
     level = logging.DEBUG if parsed_args.debug else logging.INFO
