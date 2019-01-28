@@ -22,7 +22,7 @@ class SimpleTrainer:
 
     def warmup(self, inputs, targets):
         self.module.train()
-        logits, loss = self.module(inputs, targets)
+        _, loss = self.module(inputs, targets)
         loss.mean().backward()
         self.module.zero_grad()
         torch.cuda.synchronize()
@@ -57,8 +57,8 @@ class SimpleTrainer:
             _ = self.module.train() if is_training else self.module.eval()
             f = self.step if is_training else self.forward
 
-            for batch_idx, (inputs, targets) in generator:
-                logits, metrics = f(inputs, targets)
+            for _, (inputs, targets) in generator:
+                _, metrics = f(inputs, targets)
 
                 metrics = {key: float(value) for key, value in metrics.items()}
                 metric_hist.append(metrics)

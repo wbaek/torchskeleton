@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# pylint: disable=arguments-differ, abstract-method
 from __future__ import absolute_import
 import logging
 
@@ -9,7 +10,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 class AccuracyMany(torch.nn.Module):
-    def __init__(self, topk=(1, )):
+    def __init__(self, topk=(1,)):
         super(AccuracyMany, self).__init__()
         self.topk = topk
 
@@ -31,7 +32,7 @@ class AccuracyMany(torch.nn.Module):
 
 class Accuracy(AccuracyMany):
     def __init__(self, topk=1):
-        super(Accuracy, self).__init__((topk, ))
+        super(Accuracy, self).__init__((topk,))
 
     def forward(self, output, target):
         res = super(Accuracy, self).forward(output, target)

@@ -2,7 +2,7 @@
 import torch
 import numpy as np
 
-from skeleton.nn.modules.wrappers import Identity, Mul, Flatten, Concat, MergeSum, Split
+from skeleton.nn.modules.wrappers import Identity, Mul, Flatten, Concat, MergeSum, Split, DelayedPass
 
 
 def test_identity():
@@ -64,3 +64,16 @@ def test_split():
     assert (x == y2.numpy()).all()
     assert (x * 0.5 == y3.numpy()).all()
     assert (x * 1.5 == y4.numpy()).all()
+
+
+def test_delayed_pass():
+    x1 = np.random.rand(128, 3, 32, 32).astype(np.float32)
+    x2 = np.random.rand(128, 3, 32, 32).astype(np.float32)
+
+    m = DelayedPass()
+    y1 = m(torch.Tensor(x1))
+    y2 = m(torch.Tensor(x2))
+    y3 = m(None)
+    assert y1 is None
+    assert (x1 == y2.numpy()).all()
+    assert (x2 == y3.numpy()).all()

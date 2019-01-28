@@ -46,11 +46,11 @@ class Cifar:
     @staticmethod
     def loader(batch_size, num_classes=10, cv_ratio=0.0, cutout_length=0, root='./data', num_workers=16):
         assert cv_ratio < 1.0
-        EPS = 1e-5
+        eps = 1e-5
         train_set, test_set, data_shape = Cifar.sets(batch_size, num_classes=num_classes, cutout_length=cutout_length, root=root)
 
         if cv_ratio > 0.0:
-            num_train_set = int(len(train_set) * (1 - cv_ratio) + EPS)
+            num_train_set = int(len(train_set) * (1 - cv_ratio) + eps)
             num_valid_set = len(train_set) - num_train_set
             train_set, valid_set = torch.utils.data.random_split(train_set, [num_train_set, num_valid_set])
             valid_set.dataset.transform = test_set.transform

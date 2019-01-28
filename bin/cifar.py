@@ -129,7 +129,7 @@ def main(args):
         torch.Tensor(np.random.rand(*data_shape[0])),
         torch.LongTensor(np.random.randint(0, 10, data_shape[1][0]))
     )
-    for epoch in range(1, args.epoch):
+    for _ in range(1, args.epoch):
         trainer.epoch(train_loader, is_training=True, verbose=args.debug)
         if args.debug:
             trainer.epoch(test_loader, is_training=False, verbose=args.debug)
@@ -148,6 +148,9 @@ if __name__ == '__main__':
     parser.add_argument('--log-filename', type=str, default='')
     parser.add_argument('--debug', action='store_true')
     parsed_args = parser.parse_args()
+
+    parsed_args.gpus = 4
+    parsed_args.debug = True
 
     log_format = '[%(asctime)s %(levelname)s] %(message)s'
     level = logging.DEBUG if parsed_args.debug else logging.INFO

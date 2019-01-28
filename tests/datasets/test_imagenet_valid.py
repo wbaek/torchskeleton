@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# pylint: disable=protected-access
 from torchvision import transforms
 from skeleton.datasets.imagenet import Imagenet
 
