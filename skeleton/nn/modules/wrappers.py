@@ -17,9 +17,9 @@ class Identity(torch.nn.Module):
 class FactorizedReduce(torch.nn.Module):
     def __init__(self, in_channels, out_channels, stride=2):
         assert stride == 2
-        assert out_channels % 2 == 0
+        assert out_channels % 4 == 0
         super(FactorizedReduce, self).__init__()
-        out_channels_half = out_channels // 2
+        out_channels_half = out_channels // 4
 
         self.conv = torch.nn.Conv2d(in_channels, out_channels_half, kernel_size=1, stride=stride, padding=0, bias=False)
         self.post = torch.nn.Sequential(
@@ -27,7 +27,12 @@ class FactorizedReduce(torch.nn.Module):
         )
 
     def forward(self, x):
-        x = torch.cat([self.conv(x), self.conv(x[:, :, 1:, 1:])], dim=1)
+        x = torch.cat([
+            self.conv(x),
+            self.conv(x[:, :, 1:, 0:]),
+            self.conv(x[:, :, 0:, 1:]),
+            self.conv(x[:, :, 1:, 1:])
+        ], dim=1)
         x = self.post(x)
         return x
 
