@@ -14,7 +14,7 @@ sys.path.append(base_dir)
 import skeleton
 
 
-class BasicNet(skeleton.nn.modules.VerboseModule):
+class BasicNet(skeleton.nn.modules.TraceModule):
     def __init__(self, depth=4, num_classes=10):
         super(BasicNet, self).__init__()
         self.handles = []
@@ -60,7 +60,7 @@ class BasicNet(skeleton.nn.modules.VerboseModule):
             ))
         )
         self.layers = torch.nn.Sequential(OrderedDict(layers))
-        self.loss_fn = torch.nn.CrossEntropyLoss(reduction='mean')
+        self.loss_fn = torch.nn.CrossEntropyLoss(reduction='none')
 
     def forward(self, inputs, targets=None):  # pylint: disable=arguments-differ
         logits = self.layers(inputs)
@@ -101,12 +101,11 @@ def main(args):
     model.register_forward_pre_hook(skeleton.nn.hooks.MoveToHook.get_forward_pre_hook(device=device, half=False))
     if args.debug:
         print('---------- architecture ---------- ')
-        model.module.print_architecture()
-        print('---------- forward steps ---------- ')
-        model.module.register_verbose_hooks()
         handle = model.module.register_forward_pre_hook(skeleton.nn.hooks.MoveToHook.get_forward_pre_hook(device=device, half=False))
+        model.module.register_trace_hooks()
         _ = model.module(torch.Tensor(*data_shape[0]))
-        model.module.remove_verbose_hooks()
+        model.module.remove_trace_hooks()
+        model.module.print_trace()
         handle.remove()
         print('---------- done ---------- ')
 
