@@ -23,7 +23,7 @@ class SimpleTrainer:
     def warmup(self, inputs, targets):
         self.module.train()
         logits, loss = self.module(inputs, targets)
-        loss.backward()
+        loss.mean().backward()
         self.module.zero_grad()
         torch.cuda.synchronize()
 
@@ -31,7 +31,7 @@ class SimpleTrainer:
         logits, loss = self.module(inputs, targets)
 
         metrics = {name: m(logits, targets) for name, m in self.metric_fns.items()} if self.metric_fns is not None else {}
-        metrics['loss'] = loss
+        metrics['loss'] = loss.mean()
         return logits, metrics
 
     def step(self, inputs, targets):

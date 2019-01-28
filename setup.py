@@ -42,6 +42,7 @@ setup(
         'skorch',
         'tensorboardX',
         'tqdm',
+        'treelib',
         'opencv-python',
     ],
     tests_require=[],

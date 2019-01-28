@@ -2,5 +2,6 @@
 # pylint: disable=wildcard-import
 from __future__ import absolute_import
 
-from .module import IOModule, MoveToModule, VerboseModule
+from .module import TraceModule
+from .hooks import MoveToHook
 from .wrappers import *

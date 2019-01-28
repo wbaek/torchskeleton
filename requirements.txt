@@ -2,6 +2,7 @@ torch==1.0.0
 torchvision>=0.2.1
 tensorboardX>=1.5
 
+treelib>=1.5.3
 tqdm>=4.28.0
 opencv-python>=3.4.5
 
