@@ -82,7 +82,6 @@ class TraceModule(torch.nn.Module):
                     'input_shape': tuple(input_shape),
                 }
                 self.flatten_forward_pass.append(data)
-                print(data['name'], name)
             return verbose
 
         for name, module in self.named_modules():
