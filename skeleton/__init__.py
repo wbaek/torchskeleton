@@ -5,4 +5,5 @@ from __future__ import absolute_import
 from .nn import *
 from .optim import *
 from .trainers import *
+from .darts import *
 from .datasets import *
