@@ -52,17 +52,17 @@ class DartsSearchedNet(skeleton.nn.modules.TraceModule):
             )),
         ]
 
-        prev_reduce, reduce = False, False
+        reduce_prev, reduce_curr = False, False
         prev_channels, in_channels, out_channels, channels = out_channels, out_channels, out_channels, channels
         self.delayed_pass = skeleton.nn.DelayedPass(length=1)
         for i in range(depth):
-            prev_reduce, reduce = reduce, i in [depth // 3, 2 * depth // 3]
-            prev_channels, in_channels, channels = in_channels, out_channels, (channels * (1 if not reduce else 2))
+            reduce_prev, reduce_curr = reduce_curr, i in [depth // 3, 2 * depth // 3]
+            prev_channels, in_channels, channels = in_channels, out_channels, (channels * (1 if not reduce_curr else 2))
             out_channels = channels * steps
             operations = []
-            for path in GENOTYPES['normal' if not reduce else 'reduce']:
+            for path in GENOTYPES['normal' if not reduce_curr else 'reduce']:
                 new_path = copy.deepcopy(path)
-                stride = 2 if path['from'] in [0, 1] and reduce else 1
+                stride = 2 if path['from'] in [0, 1] and reduce_curr else 1
                 new_path['op'] = skeleton.darts.Operations.create(path['name'], channels, stride=stride, affine=True)
                 operations.append(new_path)
 
@@ -73,7 +73,7 @@ class DartsSearchedNet(skeleton.nn.modules.TraceModule):
                         ('prev', self.delayed_pass)
                     ])),
                     skeleton.darts.layers.Cell(operations, channels, in_channels, prev_channels,
-                                               prev_reduce=prev_reduce, affine=True),
+                                               prev_reduce=reduce_prev, affine=True),
                 ))
             )
         layers.append(
@@ -172,7 +172,7 @@ if __name__ == '__main__':
     parser.add_argument('-c', '--num-class', type=int, default=10, help='10 or 100')
     parser.add_argument('-b', '--batch', type=int, default=96)
     parser.add_argument('-e', '--epoch', type=int, default=600)
-    parser.add_argument('--gpus', type=int, default=1)
+    parser.add_argument('--gpus', type=int, default=torch.cuda.device_count())
 
     parser.add_argument('--log-filename', type=str, default='')
     parser.add_argument('--debug', action='store_true')
