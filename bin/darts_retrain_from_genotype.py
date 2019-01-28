@@ -172,15 +172,11 @@ if __name__ == '__main__':
     parser.add_argument('-c', '--num-class', type=int, default=10, help='10 or 100')
     parser.add_argument('-b', '--batch', type=int, default=96)
     parser.add_argument('-e', '--epoch', type=int, default=600)
-    parser.add_argument('--gpus', type=int, default=torch.cuda.device_count())
+    parser.add_argument('--gpus', type=int, default=1)
 
     parser.add_argument('--log-filename', type=str, default='')
     parser.add_argument('--debug', action='store_true')
     parsed_args = parser.parse_args()
-
-    parsed_args.depth = 20
-    parsed_args.gpus = 1
-    parsed_args.debug = True
 
     log_format = '[%(asctime)s %(levelname)s] %(message)s'
     level = logging.DEBUG if parsed_args.debug else logging.INFO
