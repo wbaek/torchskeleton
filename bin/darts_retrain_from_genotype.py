@@ -197,7 +197,7 @@ def main(args):
         model,
         optimizer,
         metric_fns={
-            'accuracy': skeleton.trainers.metrics.Accuracy(topk=1),
+            'accuracy': skeleton.trainers.metrics.Accuracy(topk=1, scale=100.0),
             #'accuracy_top5': skeleton.trainers.metrics.Accuracy(topk=5),
         }
     )

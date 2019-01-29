@@ -31,9 +31,10 @@ class AccuracyMany(torch.nn.Module):
 
 
 class Accuracy(AccuracyMany):
-    def __init__(self, topk=1):
+    def __init__(self, topk=1, scale=1.0):
         super(Accuracy, self).__init__((topk,))
+        self.scale = scale
 
     def forward(self, output, target):
         res = super(Accuracy, self).forward(output, target)
-        return res[0]
+        return res[0] * self.scale
