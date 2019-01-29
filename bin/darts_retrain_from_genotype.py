@@ -4,6 +4,7 @@ import sys
 import copy
 import math
 import random
+import shutil
 import logging
 from collections import OrderedDict
 
@@ -116,11 +117,14 @@ class DartsSearchedNet(skeleton.nn.modules.TraceModule):
 
 
 def main(args):
-    logging.info('args: %s', args)
-    device = torch.device('cuda', 0) if torch.cuda.is_available() else torch.device('cpu', 0)
     random.seed(0xC0FFEE)
     np.random.seed(0xC0FFEE)
     torch.manual_seed(0xC0FFEE)
+    logging.info('args: %s', args)
+    device = torch.device('cuda', 0) if torch.cuda.is_available() else torch.device('cpu', 0)
+
+    if args.base_dir is not None:
+        writer = skeleton.summary.FileWriter(args.base_dir)
 
     batch_size = args.batch * args.gpus
     train_loader, test_loader, data_shape = skeleton.datasets.Cifar.loader(
@@ -133,15 +137,17 @@ def main(args):
 
     model.to(device=device)
     model.register_forward_pre_hook(skeleton.nn.hooks.MoveToHook.get_forward_pre_hook(device=device, half=False))
-    if args.debug:
-        print('---------- architecture ---------- ')
-        handle = model.module.register_forward_pre_hook(skeleton.nn.hooks.MoveToHook.get_forward_pre_hook(device=device, half=False))
-        model.module.register_trace_hooks()
-        _ = model.module(torch.Tensor(np.random.rand(*data_shape[0])))
-        model.module.remove_trace_hooks()
-        model.module.print_trace()
-        handle.remove()
-        print('---------- done ---------- ')
+
+    print('---------- architecture ---------- ')
+    handle = model.module.register_forward_pre_hook(skeleton.nn.hooks.MoveToHook.get_forward_pre_hook(device=device, half=False))
+    model.module.register_trace_hooks()
+    _ = model.module(torch.Tensor(np.random.rand(*data_shape[0])))
+    model.module.remove_trace_hooks()
+    model_architecture = model.module.print_trace()
+    handle.remove()
+    skeleton.summary.text('train', 'architecture', model_architecture.replace('\n', '<BR/>').replace(' ', '&nbsp;'))
+    writer.write(0)
+    print('---------- done. ---------- ')
 
     def get_lr_cosine_schedule(init_lr, maximum_epoch, eta_min=0):
         def schedule(e):
@@ -149,7 +155,6 @@ def main(args):
                    (1 + math.cos(math.pi * (e - 1) / maximum_epoch)) * \
                    (init_lr - eta_min) + eta_min
         return schedule
-
     optimizer = skeleton.optim.ScheduledOptimzer(
         [p for p in model.parameters() if p.requires_grad],
         torch.optim.SGD,
@@ -166,16 +171,26 @@ def main(args):
             #'accuracy_top5': skeleton.trainers.metrics.Accuracy(topk=5),
         }
     )
-
     trainer.warmup(
         torch.Tensor(np.random.rand(*data_shape[0])),
         torch.LongTensor(np.random.randint(0, 10, data_shape[1][0]))
     )
+
+    print('---------- warmup done. ---------- ')
     for epoch in range(1, args.epoch):
-        trainer.epoch(train_loader, is_training=True, verbose=args.debug)
-        if args.debug or epoch % 10 == 0:
-            trainer.epoch(test_loader, is_training=False, verbose=args.debug)
-    trainer.epoch(test_loader, is_training=False, verbose=args.debug, desc='[final]')
+        metrics_train = trainer.epoch('train', train_loader, is_training=True, verbose=args.debug)
+        metrics_valid = trainer.epoch('valid', test_loader, is_training=False, verbose=args.debug)
+        writer.write(epoch)
+        torch.save({
+            'epoch': epoch,
+            'model': model.state_dict(),
+            'optimizer': optimizer.state_dict(),
+            'metrics': {
+                'train': metrics_train,
+                'valid': metrics_valid
+            }
+        }, args.base_dir + '/models/epoch_%04d.pth' % epoch)
+    trainer.epoch('valid', test_loader, is_training=False, verbose=args.debug, desc='[final]')
 
 
 if __name__ == '__main__':
@@ -189,9 +204,15 @@ if __name__ == '__main__':
     parser.add_argument('-e', '--epoch', type=int, default=600)
     parser.add_argument('--gpus', type=int, default=torch.cuda.device_count())
 
+    parser.add_argument('--base-dir', type=str, required=True)
+
     parser.add_argument('--log-filename', type=str, default='')
     parser.add_argument('--debug', action='store_true')
     parsed_args = parser.parse_args()
+
+    parsed_args.depth = 20
+    parsed_args.gpus = 1
+    parsed_args.debug = False
 
     log_format = '[%(asctime)s %(levelname)s] %(message)s'
     level = logging.DEBUG if parsed_args.debug else logging.INFO
@@ -199,5 +220,10 @@ if __name__ == '__main__':
         logging.basicConfig(level=level, format=log_format, stream=sys.stderr)
     else:
         logging.basicConfig(level=level, format=log_format, filename=parsed_args.log_filename)
+
+    if os.path.exists(parsed_args.base_dir):
+        logging.warning('remove exists folder at %s', parsed_args.base_dir)
+        shutil.rmtree(parsed_args.base_dir)
+    os.makedirs(parsed_args.base_dir + '/models', exist_ok=True)
 
     main(parsed_args)

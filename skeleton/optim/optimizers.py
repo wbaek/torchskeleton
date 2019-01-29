@@ -3,6 +3,7 @@ from __future__ import absolute_import
 import logging
 
 import torch
+from ..summary import summary
 
 
 LOGGER = logging.getLogger(__name__)
@@ -22,14 +23,17 @@ class ScheduledOptimzer:
 
     def step(self, epoch=None):
         self.epoch = self.epoch + (1.0 / self.steps_per_epoch) if epoch is None else epoch
+        opt_params = self.get_opt_params()
+        for key, value in opt_params.items():
+            summary.scalar('train', 'optimizer/%s' % key, value)
 
-        self._optimizer.param_groups[0].update(**self.get_opt_params())
+        self._optimizer.param_groups[0].update(**opt_params)
         torch.nn.utils.clip_grad_norm_(self._parameters, self.clip_grad_max_norm, norm_type=2)
         self._optimizer.step()
 
     def state_dict(self):
         state_dict = self._optimizer.state_dict()
-        state_dict.update({'epoch', self.epoch})
+        state_dict.update({'epoch': self.epoch})
         return state_dict
 
     def load_state_dict(self, state_dict):

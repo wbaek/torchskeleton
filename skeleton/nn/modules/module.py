@@ -11,6 +11,18 @@ from treelib import Tree
 LOGGER = logging.getLogger(__name__)
 
 
+class OrderedTree(Tree):
+    def __init__(self):
+        super(OrderedTree, self).__init__()
+        self._nodes = OrderedDict([])
+        self._reader = ""
+
+    def show(self, nid=None, level=Tree.ROOT, idhidden=True, filter=None,
+             key=False, reverse=False, line_type='ascii', data_property=None):
+        super(OrderedTree, self).show(nid=nid, level=level, idhidden=idhidden, filter=filter,
+                                      key=key, reverse=reverse, line_type=line_type, data_property=data_property)
+        return self._reader
+
 class TraceModule(torch.nn.Module):
     def __init__(self):
         super(TraceModule, self).__init__()
@@ -18,8 +30,7 @@ class TraceModule(torch.nn.Module):
         self.flatten_forward_pass = []
 
     def print_trace(self):
-        tree = Tree()
-        tree._nodes = OrderedDict([])  # pylint: disable=protected-access
+        tree = OrderedTree()
 
         def add_nodes(tree, identifier):
             if identifier is None or not identifier:
@@ -56,8 +67,7 @@ class TraceModule(torch.nn.Module):
 
             add_nodes(tree, parent)
             tree.create_node(tag=tag, identifier=identifier, parent=parent)
-
-        tree.show(key=False)
+        return tree.show()
 
     def register_trace_hooks(self):
         def get_hook(name):

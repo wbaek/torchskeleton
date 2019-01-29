@@ -5,6 +5,7 @@ import logging
 from tqdm import tqdm
 import numpy as np
 import torch
+from ..summary import summary
 
 
 LOGGER = logging.getLogger(__name__)
@@ -44,7 +45,7 @@ class SimpleTrainer:
         self.global_step += 1
         return logits, metrics
 
-    def epoch(self, loader, is_training=True, desc='', verbose=False):
+    def epoch(self, tag, loader, is_training=True, desc='', verbose=False):
         steps = len(loader)
         desc = desc if desc else '[%s] [epoch:%04d]' % ('train' if is_training else 'valid', self.global_epoch)
 
@@ -68,6 +69,8 @@ class SimpleTrainer:
             self.global_epoch += 1 if is_training else 0
 
         metric_avg = {metric: np.average([m[metric] for m in metric_hist]) for metric in metric_hist[0].keys()}
+        for key, value in metric_avg.items():
+            summary.scalar(tag, 'metrics/%s' % key, value)
         metric_str = ['%s: %.4f' % (key, value) for key, value in metric_avg.items()]
         LOGGER.info('%s average %s', desc, ', '.join(metric_str))
-        return metric_avg['loss']
+        return metric_avg
