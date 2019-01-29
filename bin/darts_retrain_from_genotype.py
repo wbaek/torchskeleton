@@ -64,6 +64,7 @@ class DartsSearchedNet(skeleton.nn.modules.TraceModule):
         reduce_prev, reduce_curr = False, False
         prev_channels, in_channels, out_channels, channels = out_channels, out_channels, out_channels, channels
         self.delayed_pass = skeleton.nn.DelayedPass(length=1)
+        self.auxiliary_keep = skeleton.nn.KeepByPass()
         for i in range(depth):
             reduce_prev, reduce_curr = reduce_curr, i in [depth // 3, 2 * depth // 3]
             prev_channels, in_channels, channels = in_channels, out_channels, (channels * (1 if not reduce_curr else 2))
@@ -76,16 +77,21 @@ class DartsSearchedNet(skeleton.nn.modules.TraceModule):
                 operations.append(new_path)
             nodes = GENOTYPES['normal' if not reduce_curr else 'reduce']['node']
 
+            sequential = [
+                skeleton.nn.Split(OrderedDict([
+                    ('curr', skeleton.nn.Identity()),
+                    ('prev', self.delayed_pass)
+                ])),
+                skeleton.darts.layers.Cell(operations, nodes, channels, in_channels, prev_channels,
+                                           prev_reduce=reduce_prev, affine=True),
+            ]
+            if i == int(2 * depth // 3):
+                sequential.append(self.auxiliary_keep)
+                auxiliary_info = {'idx': i, 'channels': channels, 'out_channels': out_channels}
             layers.append(
-                ('layer%02d'%i, torch.nn.Sequential(
-                    skeleton.nn.Split(OrderedDict([
-                        ('curr', skeleton.nn.Identity()),
-                        ('prev', self.delayed_pass)
-                    ])),
-                    skeleton.darts.layers.Cell(operations, nodes, channels, in_channels, prev_channels,
-                                               prev_reduce=reduce_prev, affine=True),
-                ))
+                ('layer%02d'%i, torch.nn.Sequential(*sequential))
             )
+
         layers.append(
             ('global_pool', torch.nn.AdaptiveAvgPool2d((1, 1)))
         )
@@ -96,18 +102,40 @@ class DartsSearchedNet(skeleton.nn.modules.TraceModule):
             ))
         )
         self.layers = torch.nn.Sequential(OrderedDict(layers))
+        self.auxiliary = torch.nn.Sequential(
+            torch.nn.ReLU(inplace=False),
+            torch.nn.AvgPool2d(5, stride=3, padding=0, count_include_pad=False), # image size = 2 x 2
+            torch.nn.Conv2d(auxiliary_info['out_channels'], 128, 1, bias=False),
+            torch.nn.BatchNorm2d(128),
+            torch.nn.ReLU(inplace=True),
+            torch.nn.Conv2d(128, 768, 2, bias=False),
+            torch.nn.BatchNorm2d(768),
+            torch.nn.ReLU(inplace=True),
+            skeleton.nn.Flatten(),
+            torch.nn.Linear(768, num_classes)
+        )
+
         self.loss_fn = torch.nn.CrossEntropyLoss(reduction='none')
 
     def forward(self, inputs, targets=None):  # pylint: disable=arguments-differ
         self.delayed_pass.forward(None)
         logits = self.layers(inputs)
+        if self.training:
+            auxiliary_logits = self.auxiliary(self.auxiliary_keep.x)
+            self.auxiliary_keep(None)
+
         if targets is None:
             return logits
-
         if targets.device != logits.device:
             targets = targets.to(device=logits.device)
+
         loss = self.loss_fn(input=logits, target=targets)
-        return logits, loss
+        if self.training:
+            auxiliary_loss = self.loss_fn(input=auxiliary_logits, target=targets)
+            total_loss = loss + (auxiliary_loss * 0.4)
+        else:
+            total_loss = loss
+        return logits, total_loss
 
     def half(self):
         # super(BasicNet, self).half()
@@ -133,15 +161,14 @@ def main(args):
         cv_ratio=0.0, cutout_length=16
     )
 
-    model = DartsSearchedNet(channels=args.init_channels, steps=4, depth=args.depth, num_classes=args.num_class)
+    model = DartsSearchedNet(channels=args.init_channels, steps=4, depth=args.depth, num_classes=args.num_class).train()
     model = torch.nn.DataParallel(model, device_ids=list(range(args.gpus)), output_device=0)
 
     model.to(device=device)
     model.register_forward_pre_hook(skeleton.nn.hooks.MoveToHook.get_forward_pre_hook(device=device, half=False))
 
     print('---------- architecture ---------- ')
-    handle = model.module.register_forward_pre_hook(
-        skeleton.nn.hooks.MoveToHook.get_forward_pre_hook(device=device, half=False))
+    handle = model.module.register_forward_pre_hook(skeleton.nn.hooks.MoveToHook.get_forward_pre_hook(device=device, half=False))
     model.module.register_trace_hooks()
     _ = model.module(torch.Tensor(*data_shape[0]))
     model.module.remove_trace_hooks()
@@ -178,9 +205,14 @@ def main(args):
         torch.Tensor(np.random.rand(*data_shape[0])),
         torch.LongTensor(np.random.randint(0, 10, data_shape[1][0]))
     )
-
     print('---------- warmup done. ---------- ')
-    for epoch in range(1, args.epoch):
+
+    for epoch in range(args.epoch):
+        def apply_drop_prob(module):
+            if isinstance(module, skeleton.nn.DropPath):
+                module.drop_prob = 0.2 * epoch / args.epoch
+        model.apply(apply_drop_prob)
+
         metrics_train = trainer.epoch('train', train_loader, is_training=True, verbose=args.debug)
         metrics_valid = trainer.epoch('valid', test_loader, is_training=False, verbose=args.debug)
         writer.write(epoch)
@@ -214,7 +246,7 @@ if __name__ == '__main__':
     parser.add_argument('--debug', action='store_true')
     parsed_args = parser.parse_args()
 
-    parsed_args.depth = 20
+    parsed_args.depth = 4
     parsed_args.gpus = 1
     parsed_args.debug = False
 

@@ -72,7 +72,7 @@ class TraceModule(torch.nn.Module):
     def register_trace_hooks(self):
         def get_hook(name):
             def verbose(module, inputs):
-                if not inputs:
+                if not inputs or inputs[0] is None:
                     return
                 class_name = module.__class__.__name__
                 split = name.split('.')

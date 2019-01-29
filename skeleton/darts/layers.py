@@ -7,6 +7,7 @@ from collections import OrderedDict
 import torch
 
 from .operations import ReLUConvBN, FactorizedReduce
+from ..nn.modules import DropPath
 
 
 LOGGER = logging.getLogger(__name__)
@@ -43,6 +44,7 @@ class Cell(torch.nn.Module):
                 self.ops[to_][from_] = torch.nn.ModuleDict()
             self.ops[to_][from_] = op
         self.nodes = [str(n) for n in nodes]
+        self.drop_path = DropPath(drop_prob=0.0)
 
     def forward(self, *xs):
         xs = xs[0] if isinstance(xs, tuple) and len(xs) == 1 else xs
@@ -55,7 +57,7 @@ class Cell(torch.nn.Module):
         ])
 
         for to_, node in self.ops.items():
-            out_tensors = torch.stack([op(inputs[from_]) for from_, op in node.items()])
+            out_tensors = torch.stack([self.drop_path(op(inputs[from_])) for from_, op in node.items()])
             inputs[to_] = torch.sum(out_tensors, dim=0)
 
         x = torch.cat([tensor for idx, tensor in inputs.items() if idx in self.nodes], dim=1)

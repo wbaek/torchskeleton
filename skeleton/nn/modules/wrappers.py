@@ -97,3 +97,27 @@ class DelayedPass(torch.nn.Module):
         self.keep.append(x)
         rv, self.keep = self.keep[0], self.keep[1:]
         return rv
+
+
+class DropPath(torch.nn.Module):
+    def __init__(self, drop_prob=0.0):
+        super(DropPath, self).__init__()
+        self.drop_prob = drop_prob
+
+    def forward(self, x):
+        if self.training and self.drop_prob > 0.0:
+            keep_prob = 1. - self.drop_prob
+            mask = torch.cuda.FloatTensor(x.size(0), 1, 1, 1).bernoulli_(keep_prob)
+            x.div_(keep_prob)
+            x.mul_(mask)
+        return x
+
+
+class KeepByPass(torch.nn.Module):
+    def __init__(self):
+        super(KeepByPass, self).__init__()
+        self.x = None
+
+    def forward(self, x):
+        self.x = x
+        return x
