@@ -5,6 +5,7 @@ import copy
 import math
 import random
 import shutil
+import datetime
 import logging
 from collections import OrderedDict
 
@@ -139,12 +140,14 @@ def main(args):
     model.register_forward_pre_hook(skeleton.nn.hooks.MoveToHook.get_forward_pre_hook(device=device, half=False))
 
     print('---------- architecture ---------- ')
-    handle = model.module.register_forward_pre_hook(skeleton.nn.hooks.MoveToHook.get_forward_pre_hook(device=device, half=False))
+    handle = model.module.register_forward_pre_hook(
+        skeleton.nn.hooks.MoveToHook.get_forward_pre_hook(device=device, half=False))
     model.module.register_trace_hooks()
-    _ = model.module(torch.Tensor(np.random.rand(*data_shape[0])))
+    _ = model.module(torch.Tensor(*data_shape[0]))
     model.module.remove_trace_hooks()
-    model_architecture = model.module.print_trace()
     handle.remove()
+
+    model_architecture = model.module.print_trace()
     skeleton.summary.text('train', 'architecture', model_architecture.replace('\n', '<BR/>').replace(' ', '&nbsp;'))
     writer.write(0)
     print('---------- done. ---------- ')
@@ -204,7 +207,8 @@ if __name__ == '__main__':
     parser.add_argument('-e', '--epoch', type=int, default=600)
     parser.add_argument('--gpus', type=int, default=torch.cuda.device_count())
 
-    parser.add_argument('--base-dir', type=str, required=True)
+    parser.add_argument('--base-dir', type=str, required=None)
+    parser.add_argument('--name', type=str, required=None)
 
     parser.add_argument('--log-filename', type=str, default='')
     parser.add_argument('--debug', action='store_true')
@@ -220,6 +224,20 @@ if __name__ == '__main__':
         logging.basicConfig(level=level, format=log_format, stream=sys.stderr)
     else:
         logging.basicConfig(level=level, format=log_format, filename=parsed_args.log_filename)
+
+    name = 'genotypes_from_paper'
+    name += ('_' + parsed_args.name) if parsed_args.name is not None else ''
+    if parsed_args.base_dir is None:
+        parsed_args.base_dir = '/'.join([
+            '.',
+            'experiments',
+            'cifar' + str(parsed_args.num_class),
+            'darts',
+            'retrain',
+            name,
+            datetime.datetime.now().strftime('%Y%m%d'),
+            datetime.datetime.now().strftime('%H%M')
+        ])
 
     if os.path.exists(parsed_args.base_dir):
         logging.warning('remove exists folder at %s', parsed_args.base_dir)

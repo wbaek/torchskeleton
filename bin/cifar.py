@@ -3,6 +3,8 @@ import os
 import sys
 import logging
 import random
+import datetime
+import shutil
 from collections import OrderedDict
 
 import numpy as np
@@ -15,7 +17,7 @@ import skeleton
 
 
 class BasicNet(skeleton.nn.modules.TraceModule):
-    def __init__(self, depth=4, num_classes=10):
+    def __init__(self, depth=8, num_classes=10):
         super(BasicNet, self).__init__()
         self.handles = []
         layers = [
@@ -82,11 +84,14 @@ class BasicNet(skeleton.nn.modules.TraceModule):
 
 
 def main(args):
-    logging.info('args: %s', args)
-    device = torch.device('cuda', 0) if torch.cuda.is_available() else torch.device('cpu', 0)
     random.seed(0xC0FFEE)
     np.random.seed(0xC0FFEE)
     torch.manual_seed(0xC0FFEE)
+    logging.info('args: %s', args)
+    device = torch.device('cuda', 0) if torch.cuda.is_available() else torch.device('cpu', 0)
+
+    if args.base_dir is not None:
+        writer = skeleton.summary.FileWriter(args.base_dir)
 
     batch_size = args.batch * args.gpus
     train_loader, test_loader, data_shape = skeleton.datasets.Cifar.loader(
@@ -99,15 +104,18 @@ def main(args):
 
     model.to(device=device)
     model.register_forward_pre_hook(skeleton.nn.hooks.MoveToHook.get_forward_pre_hook(device=device, half=False))
-    if args.debug:
-        print('---------- architecture ---------- ')
-        handle = model.module.register_forward_pre_hook(skeleton.nn.hooks.MoveToHook.get_forward_pre_hook(device=device, half=False))
-        model.module.register_trace_hooks()
-        _ = model.module(torch.Tensor(*data_shape[0]))
-        model.module.remove_trace_hooks()
-        model.module.print_trace()
-        handle.remove()
-        print('---------- done ---------- ')
+
+    print('---------- architecture ---------- ')
+    handle = model.module.register_forward_pre_hook(skeleton.nn.hooks.MoveToHook.get_forward_pre_hook(device=device, half=False))
+    model.module.register_trace_hooks()
+    _ = model.module(torch.Tensor(*data_shape[0]))
+    model.module.remove_trace_hooks()
+    handle.remove()
+
+    model_architecture = model.module.print_trace()
+    skeleton.summary.text('train', 'architecture', model_architecture.replace('\n', '<BR/>').replace(' ', '&nbsp;'))
+    writer.write(0)
+    print('---------- done ---------- ')
 
     optimizer = skeleton.optim.ScheduledOptimzer(
         [p for p in model.parameters() if p.requires_grad],
@@ -122,18 +130,18 @@ def main(args):
         optimizer,
         metric_fns={
             'accuracy_top1': skeleton.trainers.metrics.Accuracy(topk=1),
-            #'accuracy_top5': skeleton.trainers.metrics.Accuracy(topk=5),
+            'accuracy_top5': skeleton.trainers.metrics.Accuracy(topk=5),
         }
     )
     trainer.warmup(
         torch.Tensor(np.random.rand(*data_shape[0])),
         torch.LongTensor(np.random.randint(0, 10, data_shape[1][0]))
     )
-    for _ in range(1, args.epoch):
-        trainer.epoch(train_loader, is_training=True, verbose=args.debug)
-        if args.debug:
-            trainer.epoch(test_loader, is_training=False, verbose=args.debug)
-    trainer.epoch(test_loader, is_training=False, verbose=args.debug, desc='[final]')
+    for epoch in range(1, args.epoch):
+        trainer.epoch('train', train_loader, is_training=True, verbose=args.debug)
+        trainer.epoch('valid', test_loader, is_training=False, verbose=args.debug)
+        writer.write(epoch)
+    trainer.epoch('valid', test_loader, is_training=False, verbose=args.debug, desc='[final]')
 
 
 if __name__ == '__main__':
@@ -142,8 +150,11 @@ if __name__ == '__main__':
     parser.add_argument('-d', '--depth', type=int, default=8)
     parser.add_argument('-c', '--num-class', type=int, default=10, help='10 or 100')
     parser.add_argument('-b', '--batch', type=int, default=256)
-    parser.add_argument('-e', '--epoch', type=int, default=25)
+    parser.add_argument('-e', '--epoch', type=int, default=30)
     parser.add_argument('--gpus', type=int, default=torch.cuda.device_count())
+
+    parser.add_argument('--base-dir', type=str, required=None)
+    parser.add_argument('--name', type=str, required=None)
 
     parser.add_argument('--log-filename', type=str, default='')
     parser.add_argument('--debug', action='store_true')
@@ -155,5 +166,23 @@ if __name__ == '__main__':
         logging.basicConfig(level=level, format=log_format, stream=sys.stderr)
     else:
         logging.basicConfig(level=level, format=log_format, filename=parsed_args.log_filename)
+
+    name = 'modified_resnet18'
+    name += ('_' + parsed_args.name) if parsed_args.name is not None else ''
+    if parsed_args.base_dir is None:
+        parsed_args.base_dir = '/'.join([
+            '.',
+            'experiments',
+            'cifar' + str(parsed_args.num_class),
+            'reference',
+            name,
+            datetime.datetime.now().strftime('%Y%m%d'),
+            datetime.datetime.now().strftime('%H%M')
+        ])
+
+    if os.path.exists(parsed_args.base_dir):
+        logging.warning('remove exists folder at %s', parsed_args.base_dir)
+        shutil.rmtree(parsed_args.base_dir)
+    os.makedirs(parsed_args.base_dir + '/models', exist_ok=True)
 
     main(parsed_args)

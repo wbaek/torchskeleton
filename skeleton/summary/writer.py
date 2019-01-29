@@ -43,7 +43,7 @@ Buffer()
 
 
 class FileWriter():
-    def __init__(self, logdir, tags=['train', 'valid', 'test'], comment=''):
+    def __init__(self, logdir, tags=('train', 'valid', 'test'), comment=''):
         self.tags = tags
         self.writers = {tag: SummaryWriter(logdir + '/' + tag, comment=comment) for tag in self.tags}
 
