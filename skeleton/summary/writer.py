@@ -69,7 +69,7 @@ class FileWriter():
                 elif type_ == 'embedding':
                     fn = writer.add_embedding
                 else:
-                    raise LookupError('[%s] not support type at %s', self.__class__.__name__, type_)
+                    raise LookupError('[%s] not support type at %s' % (self.__class__.__name__, type_))
 
                 for name, (tensor, local_global_step) in variables.items():
                     local_global_step = local_global_step if local_global_step is not None else global_step

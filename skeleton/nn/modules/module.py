@@ -17,7 +17,7 @@ class OrderedTree(Tree):
         self._nodes = OrderedDict([])
         self._reader = ""
 
-    def show(self, nid=None, level=Tree.ROOT, idhidden=True, filter=None,
+    def show(self, nid=None, level=Tree.ROOT, idhidden=True, filter=None,  # pylint: disable=redefined-builtin
              key=False, reverse=False, line_type='ascii', data_property=None):
         super(OrderedTree, self).show(nid=nid, level=level, idhidden=idhidden, filter=filter,
                                       key=key, reverse=reverse, line_type=line_type, data_property=data_property)

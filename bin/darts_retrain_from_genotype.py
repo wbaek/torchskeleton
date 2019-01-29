@@ -210,7 +210,7 @@ def main(args):
     for epoch in range(args.epoch):
         def apply_drop_prob(module):
             if isinstance(module, skeleton.nn.DropPath):
-                drop_prob = 0.2 * epoch / args.epoch
+                drop_prob = 0.2 * epoch / args.epoch  # pylint: disable=cell-var-from-loop
                 module.drop_prob = drop_prob
                 skeleton.summary.scalar('train', 'annealing/path_drop/drop_prob', drop_prob)
         model.apply(apply_drop_prob)
