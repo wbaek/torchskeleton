@@ -2,6 +2,7 @@
 import os
 import sys
 import copy
+import math
 import random
 import logging
 from collections import OrderedDict
@@ -16,26 +17,32 @@ import skeleton
 
 
 GENOTYPES = OrderedDict([
-    ('normal', [
-        {'to': 2, 'from': 0, 'name': 'conv_sep_3'},
-        {'to': 2, 'from': 1, 'name': 'conv_sep_3'},
-        {'to': 3, 'from': 0, 'name': 'conv_sep_3'},
-        {'to': 3, 'from': 1, 'name': 'conv_sep_3'},
-        {'to': 4, 'from': 0, 'name': 'skip'},
-        {'to': 4, 'from': 1, 'name': 'conv_sep_3'},
-        {'to': 5, 'from': 0, 'name': 'skip'},
-        {'to': 5, 'from': 1, 'name': 'conv_dil_2_3'},
-    ]),
-    ('reduce', [
-        {'to': 2, 'from': 0, 'name': 'pool_max_3'},
-        {'to': 2, 'from': 1, 'name': 'pool_max_3'},
-        {'to': 3, 'from': 1, 'name': 'pool_max_3'},
-        {'to': 3, 'from': 2, 'name': 'skip'},
-        {'to': 4, 'from': 0, 'name': 'pool_max_3'},
-        {'to': 4, 'from': 2, 'name': 'skip'},
-        {'to': 5, 'from': 1, 'name': 'pool_max_3'},
-        {'to': 5, 'from': 2, 'name': 'skip'},
-    ])
+    ('normal', {
+        'path': [
+            {'to': 2, 'from': 0, 'name': 'conv_sep_3'},
+            {'to': 2, 'from': 1, 'name': 'conv_sep_3'},
+            {'to': 3, 'from': 0, 'name': 'conv_sep_3'},
+            {'to': 3, 'from': 1, 'name': 'conv_sep_3'},
+            {'to': 4, 'from': 0, 'name': 'skip'},
+            {'to': 4, 'from': 1, 'name': 'conv_sep_3'},
+            {'to': 5, 'from': 0, 'name': 'skip'},
+            {'to': 5, 'from': 1, 'name': 'conv_dil_2_3'},
+        ],
+        'node': [2, 3, 4, 5]
+    }),
+    ('reduce', {
+        'path': [
+            {'to': 2, 'from': 0, 'name': 'pool_max_3'},
+            {'to': 2, 'from': 1, 'name': 'pool_max_3'},
+            {'to': 3, 'from': 1, 'name': 'pool_max_3'},
+            {'to': 3, 'from': 2, 'name': 'skip'},
+            {'to': 4, 'from': 0, 'name': 'pool_max_3'},
+            {'to': 4, 'from': 2, 'name': 'skip'},
+            {'to': 5, 'from': 1, 'name': 'pool_max_3'},
+            {'to': 5, 'from': 2, 'name': 'skip'},
+        ],
+        'node': [2, 3, 4, 5]
+    })
 ])
 
 
@@ -60,11 +67,12 @@ class DartsSearchedNet(skeleton.nn.modules.TraceModule):
             prev_channels, in_channels, channels = in_channels, out_channels, (channels * (1 if not reduce_curr else 2))
             out_channels = channels * steps
             operations = []
-            for path in GENOTYPES['normal' if not reduce_curr else 'reduce']:
+            for path in GENOTYPES['normal' if not reduce_curr else 'reduce']['path']:
                 new_path = copy.deepcopy(path)
                 stride = 2 if path['from'] in [0, 1] and reduce_curr else 1
                 new_path['op'] = skeleton.darts.Operations.create(path['name'], channels, stride=stride, affine=True)
                 operations.append(new_path)
+            nodes = GENOTYPES['normal' if not reduce_curr else 'reduce']['node']
 
             layers.append(
                 ('layer%02d'%i, torch.nn.Sequential(
@@ -72,7 +80,7 @@ class DartsSearchedNet(skeleton.nn.modules.TraceModule):
                         ('curr', skeleton.nn.Identity()),
                         ('prev', self.delayed_pass)
                     ])),
-                    skeleton.darts.layers.Cell(operations, channels, in_channels, prev_channels,
+                    skeleton.darts.layers.Cell(operations, nodes, channels, in_channels, prev_channels,
                                                prev_reduce=reduce_prev, affine=True),
                 ))
             )
@@ -135,12 +143,19 @@ def main(args):
         handle.remove()
         print('---------- done ---------- ')
 
+    def get_lr_cosine_schedule(init_lr, maximum_epoch, eta_min=0):
+        def schedule(e):
+            return (1 + math.cos(math.pi * e / maximum_epoch)) / \
+                   (1 + math.cos(math.pi * (e - 1) / maximum_epoch)) * \
+                   (init_lr - eta_min) + eta_min
+        return schedule
+
     optimizer = skeleton.optim.ScheduledOptimzer(
         [p for p in model.parameters() if p.requires_grad],
         torch.optim.SGD,
         steps_per_epoch=len(train_loader),
-        lr=lambda e: float(np.interp([e], [0, args.epoch+1], [0.025, 0])),
-        momentum=0.9, weight_decay=3e-4, nesterov=True
+        lr=get_lr_cosine_schedule(init_lr=0.025, maximum_epoch=args.epoch),
+        momentum=0.9, weight_decay=3e-4, nesterov=False
     )
 
     trainer = skeleton.trainers.SimpleTrainer(
@@ -156,9 +171,9 @@ def main(args):
         torch.Tensor(np.random.rand(*data_shape[0])),
         torch.LongTensor(np.random.randint(0, 10, data_shape[1][0]))
     )
-    for _ in range(1, args.epoch):
+    for epoch in range(1, args.epoch):
         trainer.epoch(train_loader, is_training=True, verbose=args.debug)
-        if args.debug:
+        if args.debug or epoch % 10 == 0:
             trainer.epoch(test_loader, is_training=False, verbose=args.debug)
     trainer.epoch(test_loader, is_training=False, verbose=args.debug, desc='[final]')
 

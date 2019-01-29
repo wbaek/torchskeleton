@@ -13,13 +13,14 @@ LOGGER = logging.getLogger(__name__)
 
 
 class Cell(torch.nn.Module):
-    def __init__(self, operations, channels, in_channels, prev_channels, prev_reduce, affine=True):
+    def __init__(self, operations, nodes, channels, in_channels, prev_channels, prev_reduce, affine=True):
         '''
         :param operations:
             operations = [
             {'to': 2, 'from': 0, 'op': torch.nn.Conv2d()},
             ...
             ]
+            nodes = [2, 3, 4, 5]
         '''
         super(Cell, self).__init__()
         self.preprocess = torch.nn.ModuleDict()
@@ -41,6 +42,7 @@ class Cell(torch.nn.Module):
             if from_ not in self.ops[to_]:
                 self.ops[to_][from_] = torch.nn.ModuleDict()
             self.ops[to_][from_] = op
+        self.nodes = [str(n) for n in nodes]
 
     def forward(self, *xs):
         xs = xs[0] if isinstance(xs, tuple) and len(xs) == 1 else xs
@@ -56,5 +58,5 @@ class Cell(torch.nn.Module):
             out_tensors = torch.stack([op(inputs[from_]) for from_, op in node.items()])
             inputs[to_] = torch.sum(out_tensors, dim=0)
 
-        x = torch.cat([tensor for idx, tensor in inputs.items() if idx not in ['0', '1']], dim=1)
+        x = torch.cat([tensor for idx, tensor in inputs.items() if idx in self.nodes], dim=1)
         return x

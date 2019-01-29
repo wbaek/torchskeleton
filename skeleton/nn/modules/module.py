@@ -17,10 +17,6 @@ class TraceModule(torch.nn.Module):
         self.handles = []
         self.flatten_forward_pass = []
 
-    def forward(self, *inputs):
-        self.flatten_forward_pass = []
-        super.__format__(*inputs)
-
     def print_trace(self):
         tree = Tree()
         tree._nodes = OrderedDict([])  # pylint: disable=protected-access
