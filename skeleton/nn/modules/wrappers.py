@@ -105,7 +105,7 @@ class DropPath(torch.nn.Module):
         self.drop_prob = drop_prob
 
     def forward(self, x):
-        if self.training and self.drop_prob > 0.0:
+        if self.training and self.drop_prob > 0.:
             keep_prob = 1. - self.drop_prob
             mask = torch.cuda.FloatTensor(x.size(0), 1, 1, 1).bernoulli_(keep_prob)
             x.div_(keep_prob)

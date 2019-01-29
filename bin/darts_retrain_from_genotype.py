@@ -119,10 +119,10 @@ class DartsSearchedNet(skeleton.nn.modules.TraceModule):
 
     def forward(self, inputs, targets=None):  # pylint: disable=arguments-differ
         self.delayed_pass.forward(None)
+        self.auxiliary_keep(None)
         logits = self.layers(inputs)
         if self.training:
             auxiliary_logits = self.auxiliary(self.auxiliary_keep.x)
-            self.auxiliary_keep(None)
 
         if targets is None:
             return logits
@@ -197,7 +197,7 @@ def main(args):
         model,
         optimizer,
         metric_fns={
-            'accuracy_top1': skeleton.trainers.metrics.Accuracy(topk=1),
+            'accuracy': skeleton.trainers.metrics.Accuracy(topk=1),
             #'accuracy_top5': skeleton.trainers.metrics.Accuracy(topk=5),
         }
     )
@@ -210,7 +210,9 @@ def main(args):
     for epoch in range(args.epoch):
         def apply_drop_prob(module):
             if isinstance(module, skeleton.nn.DropPath):
-                module.drop_prob = 0.2 * epoch / args.epoch
+                drop_prob = 0.2 * epoch / args.epoch
+                module.drop_prob = drop_prob
+                skeleton.summary.scalar('train', 'annealing/path_drop/drop_prob', drop_prob)
         model.apply(apply_drop_prob)
 
         metrics_train = trainer.epoch('train', train_loader, is_training=True, verbose=args.debug)
@@ -225,6 +227,7 @@ def main(args):
                 'valid': metrics_valid
             }
         }, args.base_dir + '/models/epoch_%04d.pth' % epoch)
+
     trainer.epoch('valid', test_loader, is_training=False, verbose=args.debug, desc='[final]')
 
 
@@ -246,9 +249,9 @@ if __name__ == '__main__':
     parser.add_argument('--debug', action='store_true')
     parsed_args = parser.parse_args()
 
-    parsed_args.depth = 4
+    parsed_args.depth = 20
     parsed_args.gpus = 1
-    parsed_args.debug = False
+    parsed_args.debug = True
 
     log_format = '[%(asctime)s %(levelname)s] %(message)s'
     level = logging.DEBUG if parsed_args.debug else logging.INFO
