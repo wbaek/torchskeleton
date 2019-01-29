@@ -41,14 +41,16 @@ class Imagenet(torch.utils.data.Dataset):
     @staticmethod
     def loader(batch_size, cv_ratio=0.0, num_workers=8):
         assert cv_ratio < 1.0
+        eps = 1e-5
+
         train_set, test_set, data_shape = Imagenet.sets(batch_size=batch_size)
         if cv_ratio > 0.0:
-            num_train_set = int(len(train_set) * (1 - cv_ratio))
+            num_train_set = int(len(train_set) * (1 - cv_ratio) + eps)
             num_valid_set = len(train_set) - num_train_set
             train_set, valid_set = torch.utils.data.random_split(train_set, [num_train_set, num_valid_set])
 
         train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True, drop_last=True)
-        test_loader = torch.utils.data.DataLoader(valid_set, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=True, drop_last=False)
+        test_loader = torch.utils.data.DataLoader(test_set, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=True, drop_last=False)
 
         if cv_ratio > 0.0:
             valid_loader = torch.utils.data.DataLoader(valid_set, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True, drop_last=True)

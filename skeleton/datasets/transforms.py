@@ -8,7 +8,7 @@ import torch
 LOGGER = logging.getLogger(__name__)
 
 
-class Cutout(object):
+class Cutout:
     def __init__(self, length):
         self.length = length
 

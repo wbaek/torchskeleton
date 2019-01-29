@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# pylint: disable=arguments-differ, abstract-method
 from __future__ import absolute_import
 import logging
 
@@ -13,6 +14,7 @@ class MoveToHook(nn.Module):
     @staticmethod
     def get_forward_pre_hook(device, half=False):
         def hook(module, inputs):
+            _ = module
             for t in inputs:
                 if not isinstance(t, torch.Tensor):
                     continue

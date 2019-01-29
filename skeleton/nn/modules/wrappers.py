@@ -15,7 +15,7 @@ class Identity(torch.nn.Module):
 
 
 class FactorizedReduce(torch.nn.Module):
-    def __init__(self, in_channels, out_channels, stride=2):
+    def __init__(self, in_channels, out_channels, stride=2, affine=True):
         assert stride == 2
         assert out_channels % 4 == 0
         super(FactorizedReduce, self).__init__()
@@ -23,7 +23,7 @@ class FactorizedReduce(torch.nn.Module):
 
         self.conv = torch.nn.Conv2d(in_channels, out_channels_half, kernel_size=1, stride=stride, padding=0, bias=False)
         self.post = torch.nn.Sequential(
-            torch.nn.BatchNorm2d(out_channels),
+            torch.nn.BatchNorm2d(out_channels, affine=affine),
         )
 
     def forward(self, x):
@@ -85,4 +85,39 @@ class Split(torch.nn.Module):
                 self.add_module(str(idx), module)
 
     def forward(self, x):
-        return [m(x) for m in self._modules.values()]
+        return tuple([m(x) for m in self._modules.values()])
+
+
+class DelayedPass(torch.nn.Module):
+    def __init__(self, length=1):
+        super(DelayedPass, self).__init__()
+        self.keep = [None] * length
+
+    def forward(self, x):
+        self.keep.append(x)
+        rv, self.keep = self.keep[0], self.keep[1:]
+        return rv
+
+
+class DropPath(torch.nn.Module):
+    def __init__(self, drop_prob=0.0):
+        super(DropPath, self).__init__()
+        self.drop_prob = drop_prob
+
+    def forward(self, x):
+        if self.training and self.drop_prob > 0.:
+            keep_prob = 1. - self.drop_prob
+            mask = torch.cuda.FloatTensor(x.size(0), 1, 1, 1).bernoulli_(keep_prob)
+            x.div_(keep_prob)
+            x.mul_(mask)
+        return x
+
+
+class KeepByPass(torch.nn.Module):
+    def __init__(self):
+        super(KeepByPass, self).__init__()
+        self.x = None
+
+    def forward(self, x):
+        self.x = x
+        return x

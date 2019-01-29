@@ -5,6 +5,7 @@ import logging
 from tqdm import tqdm
 import numpy as np
 import torch
+from ..summary import summary
 
 
 LOGGER = logging.getLogger(__name__)
@@ -22,7 +23,7 @@ class SimpleTrainer:
 
     def warmup(self, inputs, targets):
         self.module.train()
-        logits, loss = self.module(inputs, targets)
+        _, loss = self.module(inputs, targets)
         loss.mean().backward()
         self.module.zero_grad()
         torch.cuda.synchronize()
@@ -44,7 +45,7 @@ class SimpleTrainer:
         self.global_step += 1
         return logits, metrics
 
-    def epoch(self, loader, is_training=True, desc='', verbose=False):
+    def epoch(self, tag, loader, is_training=True, desc='', verbose=False):
         steps = len(loader)
         desc = desc if desc else '[%s] [epoch:%04d]' % ('train' if is_training else 'valid', self.global_epoch)
 
@@ -57,8 +58,8 @@ class SimpleTrainer:
             _ = self.module.train() if is_training else self.module.eval()
             f = self.step if is_training else self.forward
 
-            for batch_idx, (inputs, targets) in generator:
-                logits, metrics = f(inputs, targets)
+            for _, (inputs, targets) in generator:
+                _, metrics = f(inputs, targets)
 
                 metrics = {key: float(value) for key, value in metrics.items()}
                 metric_hist.append(metrics)
@@ -68,6 +69,8 @@ class SimpleTrainer:
             self.global_epoch += 1 if is_training else 0
 
         metric_avg = {metric: np.average([m[metric] for m in metric_hist]) for metric in metric_hist[0].keys()}
+        for key, value in metric_avg.items():
+            summary.scalar(tag, 'metrics/%s' % key, value)
         metric_str = ['%s: %.4f' % (key, value) for key, value in metric_avg.items()]
         LOGGER.info('%s average %s', desc, ', '.join(metric_str))
-        return metric_avg['loss']
+        return metric_avg

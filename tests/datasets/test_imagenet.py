@@ -3,7 +3,7 @@ from skeleton.datasets.imagenet import Imagenet
 
 
 def test_imagenet_dataset():
-    train_set, valid_set, data_shape = Imagenet.sets(1)
+    _, _, data_shape = Imagenet.sets(1)
     assert data_shape == [(1, 3, 224, 224), (1,)]
 
     train_loader, valid_loader, data_shape = Imagenet.loader(1)
