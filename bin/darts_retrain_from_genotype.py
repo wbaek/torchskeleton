@@ -199,12 +199,6 @@ if __name__ == '__main__':
     parser.add_argument('--debug', action='store_true')
     parsed_args = parser.parse_args()
 
-    parsed_args.batch = 96
-    parsed_args.num_class = 100
-    parsed_args.depth = 20
-    parsed_args.gpus = 4
-    parsed_args.debug = True
-
     log_format = '[%(asctime)s %(levelname)s] %(message)s'
     level = logging.DEBUG if parsed_args.debug else logging.INFO
     if not parsed_args.log_filename:
