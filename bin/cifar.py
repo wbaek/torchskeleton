@@ -2,7 +2,6 @@
 import os
 import sys
 import logging
-import random
 import datetime
 import shutil
 from collections import OrderedDict
@@ -84,9 +83,10 @@ class BasicNet(skeleton.nn.modules.TraceModule):
 
 
 def main(args):
-    random.seed(0xC0FFEE)
-    np.random.seed(0xC0FFEE)
-    torch.manual_seed(0xC0FFEE)
+    np.random.seed(0)
+    torch.manual_seed(0)
+    torch.cuda.manual_seed(0)
+
     logging.info('args: %s', args)
     device = torch.device('cuda', 0) if torch.cuda.is_available() else torch.device('cpu', 0)
 
@@ -138,6 +138,8 @@ def main(args):
         torch.LongTensor(np.random.randint(0, 10, data_shape[1][0]))
     )
     for epoch in range(1, args.epoch):
+        optimizer.update(epoch)
+
         trainer.epoch('train', train_loader, is_training=True, verbose=args.debug)
         trainer.epoch('valid', test_loader, is_training=False, verbose=args.debug)
         writer.write(epoch)

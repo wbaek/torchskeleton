@@ -14,8 +14,8 @@ jobs:
 
       - restore_cache:
           keys:
-          - python3-dependencies-pip-with-data-{{ checksum "requirements.txt" }}
-          - python3-dependencies-pip-with-data-
+          - python3-dependencies-pip-{{ checksum "requirements.txt" }}
+          - python3-dependencies-pip-
 
       - run:
           name: install dependencies
@@ -27,6 +27,7 @@ jobs:
             pip install --upgrade setuptools
             pip install pytest pytest-cov pytest-datafiles
             pip install torch torchvision
+            pip install git+https://github.com/wbaek/theconf.git
             python -c "import torchvision; torchvision.datasets.CIFAR10('./data', train=True, download=True)"
             python -c "import torchvision; torchvision.datasets.CIFAR10('./data', train=False, download=True)"
             python -c "import torchvision; torchvision.datasets.CIFAR100('./data', train=True, download=True)"
@@ -36,7 +37,7 @@ jobs:
       - save_cache:
           paths:
             - ./venv
-          key: python3-dependencies-pip-with-data-{{ checksum "requirements.txt" }}
+          key: python3-dependencies-pip-{{ checksum "requirements.txt" }}
 
       - run:
           name: run tests

@@ -45,5 +45,8 @@ setup(
         'treelib',
         'opencv-python',
     ],
+    dependency_links=[
+        'https://github.com/wbaek/theconf/tarball/master',
+    ],
     tests_require=[],
 )

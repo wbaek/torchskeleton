@@ -89,13 +89,13 @@ class Split(torch.nn.Module):
 
 
 class DelayedPass(torch.nn.Module):
-    def __init__(self, length=1):
+    def __init__(self):
         super(DelayedPass, self).__init__()
-        self.keep = [None] * length
+        self.register_buffer('keep', None)
 
     def forward(self, x):
-        self.keep.append(x)
-        rv, self.keep = self.keep[0], self.keep[1:]
+        rv = self.keep
+        self.keep = x
         return rv
 
 
@@ -117,6 +117,7 @@ class KeepByPass(torch.nn.Module):
     def __init__(self):
         super(KeepByPass, self).__init__()
         self.x = None
+        self.info = {}
 
     def forward(self, x):
         self.x = x

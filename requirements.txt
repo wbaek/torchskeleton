@@ -6,6 +6,8 @@ treelib>=1.5.3
 tqdm>=4.28.0
 opencv-python>=3.4.5
 
+git+https://github.com/wbaek/theconf.git
+
 pytest>=4.0.0
 pytest-cov>=2.6.0
 pytest-datafiles>=2.0

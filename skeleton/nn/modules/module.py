@@ -72,20 +72,27 @@ class TraceModule(torch.nn.Module):
     def register_trace_hooks(self):
         def get_hook(name):
             def verbose(module, inputs):
-                if not inputs or inputs[0] is None:
-                    return
                 class_name = module.__class__.__name__
                 split = name.split('.')
                 parent = '.'.join(split[:-1])
-                inputs = inputs[0]
-                input_shape = inputs.shape if isinstance(inputs, torch.Tensor) else [tuple(inputs_.shape) if inputs_ is not None else (None,) for inputs_ in inputs]
+
+                if not inputs or inputs[0] is None:
+                    inputs = None
+                    input_shape = None
+                    input_device = None
+                else:
+                    inputs = inputs[0]
+                    input_shape = inputs.shape if isinstance(inputs, torch.Tensor) else [tuple(inputs_.shape) if inputs_ is not None else (None,) for inputs_ in inputs]
+                    input_shape = tuple(input_shape)
+                    input_device = inputs[0][0].device
 
                 data = {
                     'name': name,
                     'name_parent': parent,
                     'name_current': split[-1],
                     'class_name': class_name,
-                    'input_shape': tuple(input_shape),
+                    'input_shape': input_shape,
+                    'inputs_device': input_device,
                 }
                 self.flatten_forward_pass.append(data)
             return verbose
