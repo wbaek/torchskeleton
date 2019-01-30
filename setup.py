@@ -44,7 +44,9 @@ setup(
         'tqdm',
         'treelib',
         'opencv-python',
-        'git+https://github.com/wbaek/theconf.git',
+    ],
+    dependency_links=[
+        'https://github.com/wbaek/theconf/tarball/master',
     ],
     tests_require=[],
 )
