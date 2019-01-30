@@ -44,6 +44,7 @@ setup(
         'tqdm',
         'treelib',
         'opencv-python',
+        'git+https://github.com/wbaek/theconf.git',
     ],
     tests_require=[],
 )
