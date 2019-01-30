@@ -3,7 +3,6 @@ import os
 import sys
 import copy
 import math
-import random
 import shutil
 import datetime
 import logging

@@ -2,7 +2,6 @@
 import os
 import sys
 import logging
-import random
 import datetime
 import shutil
 from collections import OrderedDict

@@ -8,7 +8,6 @@ import torch
 
 from ..nn.modules import TraceModule
 from ..nn import Split, Identity, Flatten, DelayedPass, KeepByPass
-from .cell import Cell
 
 
 LOGGER = logging.getLogger(__name__)
