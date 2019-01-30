@@ -85,9 +85,10 @@ class DartsSearchedNet(skeleton.darts.models.DartsBaseNet):
 
 
 def main(args):
-    # random.seed(0xC0FFEE)
-    # np.random.seed(0xC0FFEE)
-    # torch.manual_seed(0xC0FFEE)
+    np.random.seed(0)
+    torch.manual_seed(0)
+    torch.cuda.manual_seed(0)
+
     logging.info('args: %s', args)
     device = torch.device('cuda', 0) if torch.cuda.is_available() else torch.device('cpu', 0)
 
@@ -128,6 +129,7 @@ def main(args):
         [p for p in model.parameters() if p.requires_grad],
         torch.optim.SGD,
         steps_per_epoch=len(train_loader),
+        clip_grad_max_norm=5.0,
         lr=get_lr_cosine_schedule(init_lr=0.025, maximum_epoch=args.epoch),
         momentum=0.9, weight_decay=3e-4, nesterov=False
     )
@@ -153,6 +155,7 @@ def main(args):
                 module.drop_prob = drop_prob
                 skeleton.summary.scalar('train', 'annealing/path_drop/drop_prob', drop_prob)
         model.apply(apply_drop_prob)
+        optimizer.update(epoch)
 
         metrics_train = trainer.epoch('train', train_loader, is_training=True, verbose=args.debug)
         metrics_valid = trainer.epoch('valid', test_loader, is_training=False, verbose=args.debug)
