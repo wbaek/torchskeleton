@@ -67,10 +67,9 @@ class DartsBaseNet(TraceModule):
 
     def create_cell(self, channels, in_channels, prev_channels, curr_reduce, prev_reduce):
         raise NotImplementedError()
-        pass
 
     def forward(self, inputs, targets=None):  # pylint: disable=arguments-differ
-        self.delayed_pass.forward(None)
+        self.delayed_pass(None)
         self.auxiliary_keep(None)
         logits = self.layers(inputs)
 
@@ -88,4 +87,3 @@ class DartsBaseNet(TraceModule):
             if not isinstance(module, torch.nn.BatchNorm2d):
                 module.half()
         return self
-

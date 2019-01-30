@@ -102,24 +102,19 @@ def main(args):
     )
 
     model = DartsSearchedNet(channels=args.init_channels, steps=4, depth=args.depth, num_classes=args.num_class)
-    model.register_trace_hooks()
-
-    model = torch.nn.DataParallel(model, device_ids=list(range(args.gpus)), output_device=0)
     model.to(device).train()
-
-    '''
     print('---------- architecture ---------- ')
-    handle = model.module.register_forward_pre_hook(skeleton.nn.hooks.MoveToHook.get_forward_pre_hook(device=device, half=False))
-    model.module.register_trace_hooks()
-    _ = model.module(torch.Tensor(*data_shape[0]), torch.LongTensor(np.random.randint(0, 10, data_shape[1][0])))
-    model.module.remove_trace_hooks()
-    handle.remove()
+    model.register_trace_hooks()
+    _ = model(
+        inputs=torch.Tensor(*((2,)+data_shape[0][1:])).to(device),
+        targets=torch.LongTensor(np.random.randint(0, 10, (2,))).to(device)
+    )
+    model.remove_trace_hooks()
 
-    model_architecture = model.module.print_trace()
+    model_architecture = model.print_trace()
     skeleton.summary.text('train', 'architecture', model_architecture.replace('\n', '<BR/>').replace(' ', '&nbsp;'))
     writer.write(0)
     print('---------- done. ---------- ')
-    '''
 
     def get_lr_cosine_schedule(init_lr, maximum_epoch, eta_min=0):
         def schedule(e):
@@ -136,7 +131,9 @@ def main(args):
         momentum=0.9, weight_decay=3e-4, nesterov=False
     )
 
+    model = torch.nn.DataParallel(model, device_ids=list(range(args.gpus)), output_device=0)
     model.register_forward_pre_hook(skeleton.nn.hooks.MoveToHook.get_forward_pre_hook(device=device, half=False))
+    model.to(device).train()
     trainer = skeleton.trainers.SimpleTrainer(
         model,
         optimizer,
