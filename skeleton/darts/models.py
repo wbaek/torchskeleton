@@ -27,7 +27,7 @@ class DartsBaseNet(TraceModule):
             )),
         ]
 
-        self.delayed_pass = DelayedPass(length=1)
+        self.delayed_pass = DelayedPass()
         self.auxiliary_keep = KeepByPass()
 
         reduce_prev, reduce_curr = False, False

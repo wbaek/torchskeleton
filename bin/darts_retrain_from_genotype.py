@@ -102,19 +102,24 @@ def main(args):
     )
 
     model = DartsSearchedNet(channels=args.init_channels, steps=4, depth=args.depth, num_classes=args.num_class)
-    model.to(device=device).train()
-
-    print('---------- architecture ---------- ')
-    handle = model.register_forward_pre_hook(skeleton.nn.hooks.MoveToHook.get_forward_pre_hook(device=device, half=False))
     model.register_trace_hooks()
-    _ = model(torch.Tensor(*data_shape[0]), torch.LongTensor(np.random.randint(0, 10, data_shape[1][0])))
-    model.remove_trace_hooks()
+
+    model = torch.nn.DataParallel(model, device_ids=list(range(args.gpus)), output_device=0)
+    model.to(device).train()
+
+    '''
+    print('---------- architecture ---------- ')
+    handle = model.module.register_forward_pre_hook(skeleton.nn.hooks.MoveToHook.get_forward_pre_hook(device=device, half=False))
+    model.module.register_trace_hooks()
+    _ = model.module(torch.Tensor(*data_shape[0]), torch.LongTensor(np.random.randint(0, 10, data_shape[1][0])))
+    model.module.remove_trace_hooks()
     handle.remove()
 
-    model_architecture = model.print_trace()
+    model_architecture = model.module.print_trace()
     skeleton.summary.text('train', 'architecture', model_architecture.replace('\n', '<BR/>').replace(' ', '&nbsp;'))
     writer.write(0)
     print('---------- done. ---------- ')
+    '''
 
     def get_lr_cosine_schedule(init_lr, maximum_epoch, eta_min=0):
         def schedule(e):
@@ -131,8 +136,6 @@ def main(args):
         momentum=0.9, weight_decay=3e-4, nesterov=False
     )
 
-    if args.gpus > 1:
-        model = torch.nn.DataParallel(model, device_ids=list(range(args.gpus)), output_device=0)
     model.register_forward_pre_hook(skeleton.nn.hooks.MoveToHook.get_forward_pre_hook(device=device, half=False))
     trainer = skeleton.trainers.SimpleTrainer(
         model,
@@ -199,7 +202,7 @@ if __name__ == '__main__':
     parsed_args.batch = 96
     parsed_args.num_class = 100
     parsed_args.depth = 20
-    parsed_args.gpus = 1
+    parsed_args.gpus = 4
     parsed_args.debug = True
 
     log_format = '[%(asctime)s %(levelname)s] %(message)s'

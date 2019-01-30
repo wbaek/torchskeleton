@@ -79,6 +79,7 @@ class TraceModule(torch.nn.Module):
                 parent = '.'.join(split[:-1])
                 inputs = inputs[0]
                 input_shape = inputs.shape if isinstance(inputs, torch.Tensor) else [tuple(inputs_.shape) if inputs_ is not None else (None,) for inputs_ in inputs]
+                input_device = inputs[0][0].device
 
                 data = {
                     'name': name,
@@ -86,6 +87,7 @@ class TraceModule(torch.nn.Module):
                     'name_current': split[-1],
                     'class_name': class_name,
                     'input_shape': tuple(input_shape),
+                    'inputs_device': input_device,
                 }
                 self.flatten_forward_pass.append(data)
             return verbose
