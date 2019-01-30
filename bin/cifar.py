@@ -84,9 +84,9 @@ class BasicNet(skeleton.nn.modules.TraceModule):
 
 
 def main(args):
-    random.seed(0xC0FFEE)
-    np.random.seed(0xC0FFEE)
-    torch.manual_seed(0xC0FFEE)
+    # random.seed(0xC0FFEE)
+    # np.random.seed(0xC0FFEE)
+    # torch.manual_seed(0xC0FFEE)
     logging.info('args: %s', args)
     device = torch.device('cuda', 0) if torch.cuda.is_available() else torch.device('cpu', 0)
 

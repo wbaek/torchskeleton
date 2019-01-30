@@ -53,22 +53,25 @@ class SimpleTrainer:
         if verbose:
             generator = tqdm(generator, total=steps, desc=desc)
 
+        total_counts = 0
         metric_hist = []
         with torch.set_grad_enabled(is_training):
             _ = self.module.train() if is_training else self.module.eval()
             f = self.step if is_training else self.forward
 
             for _, (inputs, targets) in generator:
+                batchsize = inputs.size(0)
+                total_counts += batchsize
                 _, metrics = f(inputs, targets)
 
                 metrics = {key: float(value) for key, value in metrics.items()}
-                metric_hist.append(metrics)
+                metric_hist.append({key: v * batchsize for key, v in metrics.items()})
                 if verbose:
                     generator.set_postfix(metrics)
 
             self.global_epoch += 1 if is_training else 0
 
-        metric_avg = {metric: np.average([m[metric] for m in metric_hist]) for metric in metric_hist[0].keys()}
+        metric_avg = {metric: np.sum([m[metric] for m in metric_hist]) / total_counts for metric in metric_hist[0].keys()}
         for key, value in metric_avg.items():
             summary.scalar(tag, 'metrics/%s' % key, value)
         metric_str = ['%s: %.4f' % (key, value) for key, value in metric_avg.items()]

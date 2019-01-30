@@ -48,64 +48,13 @@ GENOTYPES = OrderedDict([
 ])
 
 
-class DartsSearchedNet(skeleton.nn.modules.TraceModule):
+class DartsSearchedNet(skeleton.darts.models.DartsBaseNet):
     def __init__(self, channels=32, steps=4, depth=20, num_classes=10):
-        super(DartsSearchedNet, self).__init__()
-
-        stem_multiplier = 3
-        out_channels = channels * stem_multiplier
-        layers = [
-            ('stem', torch.nn.Sequential(
-                torch.nn.Conv2d(3, out_channels, kernel_size=3, stride=1, padding=1, bias=False),
-                torch.nn.BatchNorm2d(out_channels),
-            )),
-        ]
-
-        reduce_prev, reduce_curr = False, False
-        prev_channels, in_channels, out_channels, channels = out_channels, out_channels, out_channels, channels
-        self.delayed_pass = skeleton.nn.DelayedPass(length=1)
-        self.auxiliary_keep = skeleton.nn.KeepByPass()
-        for i in range(depth):
-            reduce_prev, reduce_curr = reduce_curr, i in [depth // 3, 2 * depth // 3]
-            prev_channels, in_channels, channels = in_channels, out_channels, (channels * (1 if not reduce_curr else 2))
-            out_channels = channels * steps
-            operations = []
-            for path in GENOTYPES['normal' if not reduce_curr else 'reduce']['path']:
-                new_path = copy.deepcopy(path)
-                stride = 2 if path['from'] in [0, 1] and reduce_curr else 1
-                new_path['op'] = skeleton.darts.Operations.create(path['name'], channels, stride=stride, affine=True)
-                operations.append(new_path)
-            nodes = GENOTYPES['normal' if not reduce_curr else 'reduce']['node']
-
-            sequential = [
-                skeleton.nn.Split(OrderedDict([
-                    ('curr', skeleton.nn.Identity()),
-                    ('prev', self.delayed_pass)
-                ])),
-                skeleton.darts.layers.Cell(operations, nodes, channels, in_channels, prev_channels,
-                                           prev_reduce=reduce_prev, affine=True),
-            ]
-            if i == int(2 * depth // 3):
-                sequential.append(self.auxiliary_keep)
-                auxiliary_info = {'idx': i, 'channels': channels, 'out_channels': out_channels}
-            layers.append(
-                ('layer%02d'%i, torch.nn.Sequential(*sequential))
-            )
-
-        layers.append(
-            ('global_pool', torch.nn.AdaptiveAvgPool2d((1, 1)))
-        )
-        layers.append(
-            ('linear', torch.nn.Sequential(
-                skeleton.nn.Flatten(),
-                torch.nn.Linear(out_channels, num_classes),
-            ))
-        )
-        self.layers = torch.nn.Sequential(OrderedDict(layers))
+        super(DartsSearchedNet, self).__init__(channels=channels, steps=steps, depth=depth, num_classes=num_classes)
         self.auxiliary = torch.nn.Sequential(
             torch.nn.ReLU(inplace=False),
             torch.nn.AvgPool2d(5, stride=3, padding=0, count_include_pad=False), # image size = 2 x 2
-            torch.nn.Conv2d(auxiliary_info['out_channels'], 128, 1, bias=False),
+            torch.nn.Conv2d(self.auxiliary_keep.info['in_channels'], 128, 1, bias=False),
             torch.nn.BatchNorm2d(128),
             torch.nn.ReLU(inplace=True),
             torch.nn.Conv2d(128, 768, 2, bias=False),
@@ -115,34 +64,24 @@ class DartsSearchedNet(skeleton.nn.modules.TraceModule):
             torch.nn.Linear(768, num_classes)
         )
 
-        self.loss_fn = torch.nn.CrossEntropyLoss(reduction='none')
+    def create_cell(self, channels, in_channels, prev_channels, curr_reduce, prev_reduce):
+        operations = []
+        for path in GENOTYPES['normal' if not curr_reduce else 'reduce']['path']:
+            new_path = copy.deepcopy(path)
+            stride = 2 if path['from'] in [0, 1] and curr_reduce else 1
+            new_path['op'] = skeleton.darts.Operations.create(path['name'], channels, stride=stride, affine=True)
+            operations.append(new_path)
+        nodes = GENOTYPES['normal' if not curr_reduce else 'reduce']['node']
+        return skeleton.darts.cell.Cell(operations, nodes, channels, in_channels, prev_channels, prev_reduce, affine=True)
 
     def forward(self, inputs, targets=None):  # pylint: disable=arguments-differ
-        self.delayed_pass.forward(None)
-        self.auxiliary_keep(None)
-        logits = self.layers(inputs)
+        logits, loss = super(DartsSearchedNet, self).forward(inputs, targets)
         if self.training:
-            auxiliary_logits = self.auxiliary(self.auxiliary_keep.x)
-
-        if targets is None:
-            return logits
-        if targets.device != logits.device:
-            targets = targets.to(device=logits.device)
-
-        loss = self.loss_fn(input=logits, target=targets)
-        if self.training:
-            auxiliary_loss = self.loss_fn(input=auxiliary_logits, target=targets)
-            total_loss = loss + (auxiliary_loss * 0.4)
-        else:
-            total_loss = loss
-        return logits, total_loss
-
-    def half(self):
-        # super(BasicNet, self).half()
-        for module in self.children():
-            if not isinstance(module, torch.nn.BatchNorm2d):
-                module.half()
-        return self
+            if loss is not None:
+                auxiliary_logits = self.auxiliary(self.auxiliary_keep.x)
+                auxiliary_loss = self.loss_fn(input=auxiliary_logits, target=targets)
+                loss = loss + (auxiliary_loss * 0.4)
+        return logits, loss
 
 
 def main(args):
@@ -170,7 +109,7 @@ def main(args):
     print('---------- architecture ---------- ')
     handle = model.module.register_forward_pre_hook(skeleton.nn.hooks.MoveToHook.get_forward_pre_hook(device=device, half=False))
     model.module.register_trace_hooks()
-    _ = model.module(torch.Tensor(*data_shape[0]))
+    _ = model.module(torch.Tensor(*data_shape[0]), torch.LongTensor(np.random.randint(0, 10, data_shape[1][0])))
     model.module.remove_trace_hooks()
     handle.remove()
 
@@ -249,6 +188,7 @@ if __name__ == '__main__':
     parser.add_argument('--debug', action='store_true')
     parsed_args = parser.parse_args()
 
+    parsed_args.num_class = 100
     parsed_args.depth = 20
     parsed_args.gpus = 1
     parsed_args.debug = True

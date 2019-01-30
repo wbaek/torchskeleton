@@ -117,6 +117,7 @@ class KeepByPass(torch.nn.Module):
     def __init__(self):
         super(KeepByPass, self).__init__()
         self.x = None
+        self.info = {}
 
     def forward(self, x):
         self.x = x
