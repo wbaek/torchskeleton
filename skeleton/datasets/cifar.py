@@ -22,8 +22,8 @@ class Cifar:
         data_shape = [(batch_size, 3, 32, 32), (batch_size,)]
 
         transform_train = [
-            tv.transforms.Pad(4, padding_mode='reflect'),
-            tv.transforms.RandomCrop(32),
+            # tv.transforms.Pad(4, padding_mode='reflect'),
+            tv.transforms.RandomCrop(32, padding=4),
             tv.transforms.RandomHorizontalFlip(),
             tv.transforms.ToTensor(),
             tv.transforms.Normalize(CIFAR_MEAN, CIFAR_STD),
@@ -33,8 +33,8 @@ class Cifar:
         transform_train = tv.transforms.Compose(transform_train)
 
         transform_test = tv.transforms.Compose([
-            tv.transforms.Pad(4),
-            tv.transforms.CenterCrop(32),
+            # tv.transforms.Pad(4),
+            # tv.transforms.CenterCrop(32),
             tv.transforms.ToTensor(),
             tv.transforms.Normalize(CIFAR_MEAN, CIFAR_STD),
         ])

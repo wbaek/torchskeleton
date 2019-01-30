@@ -191,7 +191,8 @@ if __name__ == '__main__':
     parser.add_argument('--debug', action='store_true')
     parsed_args = parser.parse_args()
 
-    parsed_args.num_class = 100
+    parsed_args.batch = 96
+    # parsed_args.num_class = 100
     parsed_args.depth = 20
     parsed_args.gpus = 1
     parsed_args.debug = True
