@@ -148,6 +148,11 @@ def main(args):
     )
     print('---------- warmup done. ---------- ')
 
+    def initialize(module):
+        if isinstance(module, torch.nn.BatchNorm2d):
+            module.reset_running_stats()
+    model.apply(initialize)
+
     for epoch in range(args.epoch):
         def apply_drop_prob(module):
             if isinstance(module, skeleton.nn.DropPath):
@@ -192,7 +197,7 @@ if __name__ == '__main__':
     parsed_args = parser.parse_args()
 
     parsed_args.batch = 96
-    #parsed_args.num_class = 100
+    parsed_args.num_class = 100
     parsed_args.depth = 20
     parsed_args.gpus = 1
     parsed_args.debug = True
