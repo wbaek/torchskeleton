@@ -144,6 +144,7 @@ def main(args):
         return decorator
 
     def get_cosine_schedule(init_lr, maximum_epoch, eta_min=0):
+        @gradual_warm_up_decorator(10, batch_size / 96)
         def schedule(e):
             e = int(e)
             lr = eta_min + (init_lr - eta_min) * (1 + math.cos(math.pi * e / maximum_epoch)) / 2
