@@ -49,7 +49,7 @@ class DartsBaseNet(TraceModule):
                     'in_channels': out_channels
                 })
             layers.append(
-                ('layer%02d'%i, torch.nn.Sequential(*sequential))
+                ('layer%02d' % i, torch.nn.Sequential(*sequential))
             )
 
         layers.append(
