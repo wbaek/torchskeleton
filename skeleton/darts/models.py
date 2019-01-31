@@ -62,7 +62,7 @@ class DartsBaseNet(TraceModule):
             ))
         )
         self.layers = torch.nn.Sequential(OrderedDict(layers))
-        self.loss_fn = torch.nn.CrossEntropyLoss(reduction='none')
+        self.loss_fn = torch.nn.CrossEntropyLoss()
 
     def create_cell(self, channels, in_channels, prev_channels, curr_reduce, prev_reduce):
         raise NotImplementedError()
@@ -74,9 +74,6 @@ class DartsBaseNet(TraceModule):
 
         if targets is None:
             return logits, None
-        if targets.device != logits.device:
-            targets = targets.to(device=logits.device)
-
         loss = self.loss_fn(input=logits, target=targets)
         return logits, loss
 
