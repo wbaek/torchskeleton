@@ -33,7 +33,7 @@ Genotype(
         ('skip_connect', 2), ('max_pool_3x3', 1)],
     reduce_concat=[2, 3, 4, 5]
 )
-'''
+'''  # pylint: disable=pointless-string-statement
 
 
 GENOTYPES = OrderedDict([
