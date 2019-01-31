@@ -134,12 +134,23 @@ def main(args):
     writer.write(0)
     print('---------- done. ---------- ')
 
+    def gradual_warm_up_decorator(maximum_epoch, multiplier):
+        def decorator(func):
+            def wrapper(e):
+                lr = func(e)
+                lr = lr * ((multiplier - 1.0) * min(e, maximum_epoch) / maximum_epoch + 1)
+                return lr
+            return wrapper
+        return decorator
+
     def get_lr_cosine_schedule(init_lr, maximum_epoch, eta_min=0):
+        @gradual_warm_up_decorator(10, batch_size / 96)
         def schedule(e):
             return (1 + math.cos(math.pi * e / maximum_epoch)) / \
                    (1 + math.cos(math.pi * (e - 1) / maximum_epoch)) * \
                    (init_lr - eta_min) + eta_min
         return schedule
+
     optimizer = skeleton.optim.ScheduledOptimzer(
         [p for p in model.parameters() if p.requires_grad],
         torch.optim.SGD,
@@ -213,6 +224,9 @@ if __name__ == '__main__':
     parser.add_argument('--log-filename', type=str, default='')
     parser.add_argument('--debug', action='store_true')
     parsed_args = parser.parse_args()
+
+    parsed_args.debug = True
+    parsed_args.batch = 256
 
     log_format = '[%(asctime)s %(levelname)s] %(message)s'
     level = logging.DEBUG if parsed_args.debug else logging.INFO
