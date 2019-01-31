@@ -143,12 +143,11 @@ def main(args):
             return wrapper
         return decorator
 
-    def get_lr_cosine_schedule(init_lr, maximum_epoch, eta_min=0):
-        @gradual_warm_up_decorator(10, batch_size / 96)
+    def get_cosine_schedule(init_lr, maximum_epoch, eta_min=0):
         def schedule(e):
-            return (1 + math.cos(math.pi * e / maximum_epoch)) / \
-                   (1 + math.cos(math.pi * (e - 1) / maximum_epoch)) * \
-                   (init_lr - eta_min) + eta_min
+            e = int(e)
+            lr = eta_min + (init_lr - eta_min) * (1 + math.cos(math.pi * e / maximum_epoch)) / 2
+            return lr
         return schedule
 
     optimizer = skeleton.optim.ScheduledOptimzer(
@@ -156,11 +155,14 @@ def main(args):
         torch.optim.SGD,
         steps_per_epoch=len(train_loader),
         clip_grad_max_norm=5.0,
-        lr=get_lr_cosine_schedule(init_lr=0.025, maximum_epoch=args.epoch),
-        momentum=0.9, weight_decay=3e-4, nesterov=False
+        lr=get_cosine_schedule(init_lr=0.025, maximum_epoch=args.epoch),
+        momentum=0.9,
+        weight_decay=3e-4,
+        nesterov=False
     )
 
-    model = torch.nn.DataParallel(model, device_ids=list(range(args.gpus)), output_device=0)
+    if args.gpus > 1:
+        model = torch.nn.DataParallel(model, device_ids=list(range(args.gpus)), output_device=0)
     model.register_forward_pre_hook(skeleton.nn.hooks.MoveToHook.get_forward_pre_hook(device=device, half=False))
     model.to(device).train()
     trainer = skeleton.trainers.SimpleTrainer(
@@ -189,7 +191,6 @@ def main(args):
                 module.drop_prob = drop_prob
                 skeleton.summary.scalar('train', 'annealing/path_drop/drop_prob', drop_prob)
         model.apply(apply_drop_prob)
-        optimizer.update(epoch)
 
         metrics_train = trainer.epoch('train', train_loader, is_training=True, verbose=args.debug)
         metrics_valid = trainer.epoch('valid', test_loader, is_training=False, verbose=args.debug)
@@ -211,7 +212,7 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--depth', type=int, default=20)
-    parser.add_argument('--init-channels', type=int, default=32)
+    parser.add_argument('--init-channels', type=int, default=36)
 
     parser.add_argument('-c', '--num-class', type=int, default=10, help='10 or 100')
     parser.add_argument('-b', '--batch', type=int, default=96)
@@ -224,9 +225,6 @@ if __name__ == '__main__':
     parser.add_argument('--log-filename', type=str, default='')
     parser.add_argument('--debug', action='store_true')
     parsed_args = parser.parse_args()
-
-    parsed_args.debug = True
-    parsed_args.batch = 256
 
     log_format = '[%(asctime)s %(levelname)s] %(message)s'
     level = logging.DEBUG if parsed_args.debug else logging.INFO

@@ -34,6 +34,7 @@ class ScheduledOptimzer:
         return self
 
     def step(self, epoch=None):
+        self.update(self.epoch)
         self.epoch = self.epoch + (1.0 / self.steps_per_epoch) if epoch is None else epoch
         if self.clip_grad_max_norm > 0.0:
             torch.nn.utils.clip_grad_norm_(self._parameters, self.clip_grad_max_norm, norm_type=2)

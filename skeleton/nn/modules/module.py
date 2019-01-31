@@ -23,6 +23,7 @@ class OrderedTree(Tree):
                                       key=key, reverse=reverse, line_type=line_type, data_property=data_property)
         return self._reader
 
+
 class TraceModule(torch.nn.Module):
     def __init__(self):
         super(TraceModule, self).__init__()
@@ -76,7 +77,7 @@ class TraceModule(torch.nn.Module):
                 split = name.split('.')
                 parent = '.'.join(split[:-1])
 
-                if not inputs or inputs[0] is None:
+                if inputs is None or len(inputs) == 0 or inputs[0] is None:
                     inputs = None
                     input_shape = None
                     input_device = None
