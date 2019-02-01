@@ -36,10 +36,13 @@ class Imagenet(torch.utils.data.Dataset):
         ])
         train_set = Imagenet(train=True, transform=transform_train)
         valid_set = Imagenet(train=False, transform=transform_valid)
+        #train_set = torch.utils.data.Subset(train_set, list(range(1000)))
+        #valid_set = torch.utils.data.Subset(valid_set, list(range(1000)))
+
         return train_set, valid_set, data_shape
 
     @staticmethod
-    def loader(batch_size, cv_ratio=0.0, num_workers=8):
+    def loader(batch_size, cv_ratio=0.0, num_workers=16):
         assert cv_ratio < 1.0
         eps = 1e-5
 

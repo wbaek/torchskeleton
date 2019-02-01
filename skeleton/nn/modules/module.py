@@ -65,6 +65,7 @@ class TraceModule(torch.nn.Module):
             else:
                 tag = '[%s] %s: %s (shared:%s)' % (name, node['class_name'], node['input_shape'], node['name'])
                 parent = self.flatten_forward_pass[i-1]['name_parent']
+                parent = 'root' if parent is '' else parent
 
             add_nodes(tree, parent)
             tree.create_node(tag=tag, identifier=identifier, parent=parent)

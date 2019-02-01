@@ -31,6 +31,7 @@ class ScheduledOptimzer:
         self._optimizer.param_groups[0].update(**self.opt_params)
         for key, value in self.opt_params.items():
             summary.scalar('train', 'optimizer/%s' % key, value)
+        # LOGGER.debug('update optimizer params:%s', self.opt_params)
         return self
 
     def step(self, epoch=None):
