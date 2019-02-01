@@ -279,9 +279,6 @@ if __name__ == '__main__':
     parser.add_argument('--debug', action='store_true')
     parsed_args = parser.parse_args()
 
-    parsed_args.debug = True
-    parsed_args.gpus = 1
-
     log_format = '[%(asctime)s %(levelname)s] %(message)s'
     level = logging.DEBUG if parsed_args.debug else logging.INFO
     if not parsed_args.log_filename:
@@ -295,7 +292,7 @@ if __name__ == '__main__':
         parsed_args.base_dir = '/'.join([
             '.',
             'experiments',
-            'cifar' + str(parsed_args.num_class),
+            'imagenet' + str(parsed_args.num_class),
             'darts',
             'retrain',
             name,
