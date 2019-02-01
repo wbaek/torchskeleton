@@ -30,13 +30,10 @@ class Mixed(torch.nn.Module):
         initial = C.get().conf.get('architecture', {}).get('alphas', {}).get('initial', 'constant')
         if initial == 'random':
             torch.nn.init.normal_(self.alpha, mean=0.0, std=1e-3)
-            LOGGER.debug('[%s] reset_parameters initial random: %s', self.__class__.__name__, initial)
         elif initial == 'random1.0':
             torch.nn.init.normal_(self.alpha, mean=1.0, std=1e-3)
-            LOGGER.debug('[%s] reset_parameters initial random: %s', self.__class__.__name__, initial)
         else:
             torch.nn.init.constant_(self.alpha, 1e-3)
-            LOGGER.debug('[%s] reset_parameters initial constant: %s', self.__class__.__name__, initial)
 
     def update_probs(self):
         self._probs = F.softmax(self.alpha / self.tau, dim=0).view(1, -1)
@@ -61,10 +58,22 @@ class Mixed(torch.nn.Module):
 
 class DAG:
     @staticmethod
-    def create(fn, names, steps, channels, stride=1, affine=True, alpha=None, tau=1.0):
+    def create(fn, names, steps, channels, stride=1, affine=True, alpha={}, tau=1.0):
         operations = []
         for to_ in range(2, steps+2):
             for from_ in range(to_):
+                key = '%s-%s' % (from_, to_)
                 stride_ = stride if from_ in [0, 1] else 1
-                operations.append({'to': to_, 'from': from_, 'op': fn(names, channels, stride_, affine, alpha, tau)})
-        return operations
+                operations.append({
+                    'to': to_,
+                    'from': from_,
+                    'op': fn(names, channels, stride_, affine,
+                             alpha=alpha.get(key, None), tau=tau)
+                })
+
+        rv_alpha = {}
+        for op in operations:
+            key = '%s-%s' % (op['from'], op['to'])
+            rv_alpha[key] = op['op'].alpha
+
+        return operations, rv_alpha

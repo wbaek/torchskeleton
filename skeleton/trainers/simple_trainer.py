@@ -13,6 +13,11 @@ LOGGER = logging.getLogger(__name__)
 
 class SimpleTrainer:
     def __init__(self, module, optimizer, metric_fns=None):
+        '''
+        :param module: module.forawrd(inputs, targets) -> logits, loss
+        :param optimizer: skeleton.optim.ScheduledOptimzer
+        :param metric_fns: {key: fn}, fn(inputs, targets) -> ScalarTensor
+        '''
         self.module = module
         self.optimizer = optimizer
 

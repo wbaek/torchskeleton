@@ -3,6 +3,7 @@ import os
 import sys
 import logging
 import datetime
+import random
 import shutil
 from collections import OrderedDict
 
@@ -83,10 +84,10 @@ class BasicNet(skeleton.nn.modules.TraceModule):
 
 
 def main(args):
-    np.random.seed(0)
-    torch.manual_seed(0)
-    torch.cuda.manual_seed(0)
-
+    random.seed(0xC0FFEE)
+    np.random.seed(0xC0FFEE)
+    torch.manual_seed(0xC0FFEE)
+    torch.cuda.manual_seed(0xC0FFEE)
     logging.info('args: %s', args)
     device = torch.device('cuda', 0) if torch.cuda.is_available() else torch.device('cpu', 0)
 

@@ -61,17 +61,13 @@ class Concat(torch.nn.Module):
 
 
 class MergeSum(torch.nn.Module):
-    def __init__(self, num_inputs):
+    def __init__(self):
         super(MergeSum, self).__init__()
-        self.register_buffer('weight', torch.ones([1, num_inputs], dtype=torch.float32))
 
     def forward(self, *xs):
         if isinstance(xs[0], (tuple, list)):
             xs = xs[0]
-
-        original_shape = xs[0].shape
-        num_inputs = len(xs)
-        return torch.mm(self.weight, torch.stack(xs).view(num_inputs, -1)).view(original_shape)
+        return torch.sum(torch.stack(xs), dim=0)
 
 
 class Split(torch.nn.Module):
