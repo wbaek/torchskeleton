@@ -42,7 +42,7 @@ class Imagenet(torch.utils.data.Dataset):
         return train_set, valid_set, data_shape
 
     @staticmethod
-    def loader(batch_size, cv_ratio=0.0, num_workers=16):
+    def loader(batch_size, cv_ratio=0.0, num_workers=32):
         assert cv_ratio < 1.0
         eps = 1e-5
 

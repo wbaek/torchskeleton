@@ -6,14 +6,14 @@ from collections import OrderedDict
 
 import torch
 
-from ..nn.modules import TraceModule
+from ..nn.modules import TraceModule, ProfileModule
 from ..nn import Split, Identity, Flatten, DelayedPass, KeepByPass
 
 
 LOGGER = logging.getLogger(__name__)
 
 
-class DartsBaseNet(TraceModule):
+class DartsBaseNet(TraceModule, ProfileModule):
     def __init__(self, channels=32, steps=4, depth=20, num_classes=10):
         super(DartsBaseNet, self).__init__()
 

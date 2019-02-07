@@ -16,7 +16,7 @@ sys.path.append(base_dir)
 import skeleton
 
 
-class BasicNet(skeleton.nn.modules.TraceModule):
+class BasicNet(skeleton.nn.modules.TraceModule, skeleton.nn.modules.ProfileModule):
     def __init__(self, depth=8, num_classes=10):
         super(BasicNet, self).__init__()
         self.handles = []
@@ -100,23 +100,43 @@ def main(args):
         cv_ratio=0.0, cutout_length=8
     )
 
-    model = BasicNet(depth=args.depth, num_classes=args.num_class)
-    model = torch.nn.DataParallel(model, device_ids=list(range(args.gpus)), output_device=0)
-
-    model.to(device=device)
-    model.register_forward_pre_hook(skeleton.nn.hooks.MoveToHook.get_forward_pre_hook(device=device, half=False))
+    model = BasicNet(depth=args.depth, num_classes=args.num_class).to(device)
 
     print('---------- architecture ---------- ')
-    handle = model.module.register_forward_pre_hook(skeleton.nn.hooks.MoveToHook.get_forward_pre_hook(device=device, half=False))
-    model.module.register_trace_hooks()
-    _ = model.module(torch.Tensor(*data_shape[0]))
-    model.module.remove_trace_hooks()
+    model.train()
+    handle = model.register_forward_pre_hook(skeleton.nn.hooks.MoveToHook.get_forward_pre_hook(device=device, half=False))
+    model.register_trace_hooks()
+    _ = model(
+        inputs=torch.Tensor(*((2,) + data_shape[0][1:])).to(device),
+        targets=torch.LongTensor(np.random.randint(0, 10, (2,))).to(device)
+    )
+    model.remove_trace_hooks()
     handle.remove()
 
-    model_architecture = model.module.print_trace()
+    model_architecture = model.print_trace()
     skeleton.summary.text('train', 'architecture', model_architecture.replace('\n', '<BR/>').replace(' ', '&nbsp;'))
     writer.write(0)
+    print('---------- profile ---------- ')
+    model.eval()
+    handle = model.register_forward_pre_hook(
+        skeleton.nn.hooks.MoveToHook.get_forward_pre_hook(device=device, half=False))
+    model.register_profile_hooks()
+    _ = model(
+        inputs=torch.Tensor(*((1,) + data_shape[0][1:])).to(device),
+        targets=torch.LongTensor(np.random.randint(0, 10, (1,))).to(device)
+    )
+    model.remove_profile_hooks()
+    handle.remove()
+
+    total_params = model.count_parameters(name_filter=lambda name: 'auxiliary' not in name)
+    total_flops = model.count_flops(name_filter=lambda name: 'auxiliary' not in name)
+    print('#params: %.3f MB'%(total_params / 1e6))
+    print('#Flops: %.3f MB'%(total_flops / 1e6))
     print('---------- done ---------- ')
+
+    model = torch.nn.DataParallel(model, device_ids=list(range(args.gpus)), output_device=0)
+    model.to(device=device)
+    model.register_forward_pre_hook(skeleton.nn.hooks.MoveToHook.get_forward_pre_hook(device=device, half=False))
 
     optimizer = skeleton.optim.ScheduledOptimzer(
         [p for p in model.parameters() if p.requires_grad],
@@ -144,7 +164,8 @@ def main(args):
         trainer.epoch('train', train_loader, is_training=True, verbose=args.debug)
         trainer.epoch('valid', test_loader, is_training=False, verbose=args.debug)
         writer.write(epoch)
-    trainer.epoch('valid', test_loader, is_training=False, verbose=args.debug, desc='[final]')
+    metrics = trainer.epoch('valid', test_loader, is_training=False, verbose=args.debug, desc='[final]')
+    print(metrics)
 
 
 if __name__ == '__main__':

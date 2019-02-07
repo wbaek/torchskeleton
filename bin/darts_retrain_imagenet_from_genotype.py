@@ -65,7 +65,7 @@ GENOTYPES = OrderedDict([
 ])
 
 
-class DartsSearchedImageNet(skeleton.nn.TraceModule):
+class DartsSearchedImageNet(skeleton.nn.TraceModule, skeleton.nn.ProfileModule):
     def __init__(self, channels=48, steps=4, depth=15, num_classes=1000):
         super(DartsSearchedImageNet, self).__init__()
         self.delayed_pass = skeleton.nn.DelayedPass()
@@ -166,6 +166,13 @@ class DartsSearchedImageNet(skeleton.nn.TraceModule):
             loss = self.loss_fn(input=logits, target=targets)
         return logits, loss
 
+    def half(self):
+        super(DartsSearchedImageNet, self).half()
+        for module in self.children():
+            if isinstance(module, torch.nn.BatchNorm2d):
+                module.float()
+        return self
+
 
 def main(args):
     random.seed(0xC0FFEE)
@@ -179,7 +186,7 @@ def main(args):
         writer = skeleton.summary.FileWriter(args.base_dir)
 
     batch_size = args.batch * args.gpus
-    train_loader, test_loader, data_shape = skeleton.datasets.Imagenet.loader(batch_size, cv_ratio=0.0)
+    train_loader, test_loader, data_shape = skeleton.datasets.Imagenet.loader(batch_size, cv_ratio=0.0, num_workers=48)
 
     model = DartsSearchedImageNet(channels=args.init_channels, steps=4, depth=args.depth, num_classes=args.num_class)
     model.to(device).train()
@@ -194,6 +201,23 @@ def main(args):
     model_architecture = model.print_trace()
     skeleton.summary.text('train', 'architecture', model_architecture.replace('\n', '<BR/>').replace(' ', '&nbsp;'))
     writer.write(0)
+    print('---------- profile ---------- ')
+    model.eval()
+    handle = model.register_forward_pre_hook(
+        skeleton.nn.hooks.MoveToHook.get_forward_pre_hook(device=device, half=False))
+    model.register_profile_hooks(
+        module_filter=lambda name: not any(n in name for n in ['skeleton', 'loss', 'BatchNorm', 'ReLU'])
+    )
+    _ = model(
+        inputs=torch.Tensor(*((1,) + data_shape[0][1:])).to(device)
+    )
+    model.remove_profile_hooks()
+    handle.remove()
+
+    total_params = model.count_parameters(name_filter=lambda name: 'auxiliary' not in name)
+    total_flops = model.count_flops(name_filter=lambda name: 'auxiliary' not in name)
+    print('#params: %.3f MB' % (total_params / 1e6))
+    print('#Flops: %.3f MB' % (total_flops / 1e6))
     print('---------- done. ---------- ')
 
     scheduler = skeleton.optim.gradual_warm_up(
@@ -214,6 +238,7 @@ def main(args):
         nesterov=False
     )
 
+    # model.half()
     if args.gpus > 1:
         model = torch.nn.DataParallel(model, device_ids=list(range(args.gpus)), output_device=0)
     model.register_forward_pre_hook(skeleton.nn.hooks.MoveToHook.get_forward_pre_hook(device=device, half=False))
@@ -226,11 +251,6 @@ def main(args):
             'accuracy_top5': skeleton.trainers.metrics.Accuracy(topk=5, scale=100.0),
         }
     )
-    trainer.warmup(
-        torch.Tensor(np.random.rand(*data_shape[0])),
-        torch.LongTensor(np.random.randint(0, 10, data_shape[1][0]))
-    )
-    print('---------- warmup done. ---------- ')
 
     def initialize(module):
         if isinstance(module, torch.nn.BatchNorm2d):
@@ -278,6 +298,9 @@ if __name__ == '__main__':
     parser.add_argument('--log-filename', type=str, default='')
     parser.add_argument('--debug', action='store_true')
     parsed_args = parser.parse_args()
+
+    parsed_args.debug = True
+    parsed_args.batch = 256
 
     log_format = '[%(asctime)s %(levelname)s] %(message)s'
     level = logging.DEBUG if parsed_args.debug else logging.INFO

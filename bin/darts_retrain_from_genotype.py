@@ -131,6 +131,23 @@ def main(args):
     model_architecture = model.print_trace()
     skeleton.summary.text('train', 'architecture', model_architecture.replace('\n', '<BR/>').replace(' ', '&nbsp;'))
     writer.write(0)
+    print('---------- profile ---------- ')
+    model.eval()
+    handle = model.register_forward_pre_hook(
+        skeleton.nn.hooks.MoveToHook.get_forward_pre_hook(device=device, half=False))
+    model.register_profile_hooks(
+        module_filter=lambda name: not any(n in name for n in ['skeleton', 'loss', 'BatchNorm', 'ReLU'])
+    )
+    _ = model(
+        inputs=torch.Tensor(*((1,) + data_shape[0][1:])).to(device)
+    )
+    model.remove_profile_hooks()
+    handle.remove()
+
+    total_params = model.count_parameters(name_filter=lambda name: 'auxiliary' not in name)
+    total_flops = model.count_flops(name_filter=lambda name: 'auxiliary' not in name)
+    print('#params: %.3f MB' % (total_params / 1e6))
+    print('#Flops: %.3f MB' % (total_flops / 1e6))
     print('---------- done. ---------- ')
 
     scheduler = skeleton.optim.gradual_warm_up(
