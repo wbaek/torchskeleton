@@ -134,29 +134,19 @@ def main(args):
     writer.write(0)
     print('---------- done. ---------- ')
 
-    def gradual_warm_up_decorator(maximum_epoch, multiplier):
-        def decorator(func):
-            def wrapper(e):
-                lr = func(e)
-                lr = lr * ((multiplier - 1.0) * min(e, maximum_epoch) / maximum_epoch + 1)
-                return lr
-            return wrapper
-        return decorator
-
-    def get_cosine_schedule(init_lr, maximum_epoch, eta_min=0):
-        @gradual_warm_up_decorator(10, batch_size / 96)
-        def schedule(e):
-            e = int(e)
-            lr = eta_min + (init_lr - eta_min) * (1 + math.cos(math.pi * e / maximum_epoch)) / 2
-            return lr
-        return schedule
+    scheduler = skeleton.optim.gradual_warm_up(
+        skeleton.optim.get_discrete_epoch(
+            skeleton.optim.get_cosine_scheduler(init_lr=0.025, maximum_epoch=args.epoch)
+        ),
+        maximum_epoch=10, multiplier=batch_size / 96
+    )
 
     optimizer = skeleton.optim.ScheduledOptimzer(
         [p for p in model.parameters() if p.requires_grad],
         torch.optim.SGD,
         steps_per_epoch=len(train_loader),
         clip_grad_max_norm=5.0,
-        lr=get_cosine_schedule(init_lr=0.025, maximum_epoch=args.epoch),
+        lr=scheduler,
         momentum=0.9,
         weight_decay=3e-4,
         nesterov=False

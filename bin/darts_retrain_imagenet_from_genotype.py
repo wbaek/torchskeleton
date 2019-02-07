@@ -198,10 +198,11 @@ def main(args):
     print('---------- done. ---------- ')
 
     scheduler = skeleton.optim.gradual_warm_up(
-        skeleton.optim.get_discrete_epoch(skeleton.optim.get_step_scheduler(0.1, 1, 0.97)),
-        maximum_epoch=5, multiplier=128 / batch_size
+        skeleton.optim.get_discrete_epoch(
+            skeleton.optim.get_step_scheduler(0.1, 1, 0.97)
+        ),
+        maximum_epoch=5, multiplier=batch_size / 128.0
     )
-    torch.optim.lr_scheduler.StepLR
 
     optimizer = skeleton.optim.ScheduledOptimzer(
         [p for p in model.parameters() if p.requires_grad],
