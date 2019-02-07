@@ -61,9 +61,6 @@ class Concat(torch.nn.Module):
 
 
 class MergeSum(torch.nn.Module):
-    def __init__(self):
-        super(MergeSum, self).__init__()
-
     def forward(self, *xs):
         if isinstance(xs[0], (tuple, list)):
             xs = xs[0]
@@ -90,7 +87,7 @@ class DelayedPass(torch.nn.Module):
         self.register_buffer('keep', None)
 
     def forward(self, x):
-        rv = self.keep
+        rv = self.keep  # pylint: disable=access-member-before-definition
         self.keep = x
         return rv
 

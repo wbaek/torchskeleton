@@ -2,7 +2,6 @@
 # pylint: disable=arguments-differ, abstract-method
 from __future__ import absolute_import
 import logging
-from collections import OrderedDict
 
 import torch
 
@@ -17,7 +16,7 @@ class CrossEntropyLabelSmooth(torch.nn.Module):
         self.epsilon = epsilon
         self.logsoftmax = torch.nn.LogSoftmax(dim=1)
 
-    def forward(self, input, target):
+    def forward(self, input, target):  # pylint: disable=redefined-builtin
         log_probs = self.logsoftmax(input)
         targets = torch.zeros_like(log_probs).scatter_(1, target.unsqueeze(1), 1)
         targets = (1 - self.epsilon) * targets + self.epsilon / self.num_classes

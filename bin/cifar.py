@@ -46,7 +46,7 @@ class BasicNet(skeleton.nn.modules.TraceModule):
                             torch.nn.BatchNorm2d(out_channels),
                         ))
                     ])),
-                    skeleton.nn.MergeSum(num_inputs=2),
+                    skeleton.nn.MergeSum(),
                     torch.nn.LeakyReLU(inplace=True),
                 ))
             )
