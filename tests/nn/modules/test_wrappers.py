@@ -45,7 +45,7 @@ def test_concat():
 def test_merge_sum():
     x1 = np.random.rand(128, 3, 32, 32).astype(np.float32)
     x2 = np.random.rand(128, 3, 32, 32).astype(np.float32)
-    y = MergeSum(2)(torch.Tensor(x1), torch.Tensor(x2))
+    y = MergeSum()(torch.Tensor(x1), torch.Tensor(x2))
     assert y.shape == (128, 3, 32, 32)
     assert (x1 + x2 == y.numpy()).all()
 
