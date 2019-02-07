@@ -58,7 +58,7 @@ class Mixed(torch.nn.Module):
 
 class DAG:
     @staticmethod
-    def create(fn, names, steps, channels, stride=1, affine=True, alpha={}, tau=1.0):
+    def create(fn, names, steps, channels, stride=1, affine=True, alpha={}, tau=1.0):  #pylint: disable=dangerous-default-value
         operations = []
         for to_ in range(2, steps+2):
             for from_ in range(to_):

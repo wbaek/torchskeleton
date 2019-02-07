@@ -142,8 +142,8 @@ def main(args):
 
     # lambda based optimizer scheduler
     scheduler = skeleton.optim.gradual_warm_up(
-        skeleton.optim.get_discrete_epoch(skeleton.optim.get_cosine_schedule(0.025, args.epoch)),
-        maximum_epoch=5, multiplier=32 / args.batch
+        skeleton.optim.get_discrete_epoch(skeleton.optim.get_cosine_scheduler(0.025, args.epoch)),
+        maximum_epoch=10, multiplier=32 / batch_size
     )
     optimizer = skeleton.optim.ScheduledOptimzer(
         [p for p in model.parameters() if p.requires_grad],

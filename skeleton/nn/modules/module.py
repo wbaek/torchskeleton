@@ -65,6 +65,7 @@ class TraceModule(torch.nn.Module):
             else:
                 tag = '[%s] %s: %s (shared:%s)' % (name, node['class_name'], node['input_shape'], node['name'])
                 parent = self.flatten_forward_pass[i-1]['name_parent']
+                parent = 'root' if parent == '' else parent
 
             add_nodes(tree, parent)
             tree.create_node(tag=tag, identifier=identifier, parent=parent)
@@ -77,7 +78,7 @@ class TraceModule(torch.nn.Module):
                 split = name.split('.')
                 parent = '.'.join(split[:-1])
 
-                if inputs is None or len(inputs) == 0 or inputs[0] is None:
+                if inputs is None or len(inputs) == 0 or inputs[0] is None:  #pylint: disable=len-as-condition
                     inputs = None
                     input_shape = None
                     input_device = None
