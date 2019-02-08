@@ -7,6 +7,7 @@ from collections import OrderedDict
 import torch
 import numpy as np
 
+from .mixed import Mixed
 from .operations import ReLUConvBN, FactorizedReduce, Identity
 from ..nn.modules import DropPath
 
@@ -84,9 +85,12 @@ class Cell(torch.nn.Module):
         for to_, ops in self.ops.items():
             from_path = OrderedDict()
             for from_, op in ops.items():
-                prob, idx = torch.topk(op.probs[0][1:], k=1, dim=-1)  # without first ops (maybe zero)
-                prob, idx = float(prob.detach().cpu().numpy()[0]), int(idx.detach().cpu().numpy()[0]) + 1
-                from_path[from_] = {'idx': idx, 'name': op.names[idx], 'prob': prob}
+                if isinstance(op, Mixed):
+                    prob, idx = torch.topk(op.probs[0][1:], k=1, dim=-1)  # without first ops (maybe zero)
+                    prob, idx = float(prob.detach().cpu().numpy()[0]), int(idx.detach().cpu().numpy()[0]) + 1
+                    from_path[from_] = {'idx': idx, 'name': op.names[idx], 'prob': prob}
+                else:
+                    from_path[from_] = {'idx': -1, 'prob': 1.0}
 
             if self.hard:
                 found[to_] = OrderedDict()
