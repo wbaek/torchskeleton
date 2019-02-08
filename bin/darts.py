@@ -174,10 +174,22 @@ def main(args):
     for epoch in range(args.epoch):
         model.apply(get_updator(epoch))
 
+        # train
         hards = C.get()['architecture']['hard']['train']
         model.apply_hard(cell=hards['cell'], mixed=hards['mixed'])
         metrics_train_alpha, metrics_train_theta = trainer.train(train_loader, valid_loader, verbose=args.debug)
 
+        for name, param in model.named_parameters():
+            if not '.alpha' in name:
+                continue
+            if param is None:
+                continue
+            skeleton.summary.histogram('train', 'alphas/%s' % name, param.detach().cpu().numpy())
+            if param.grad is None:
+                continue
+            skeleton.summary.histogram('train', 'alphas/%s/grad' % name, param.grad.detach().cpu().numpy())
+
+        # eval
         model.eval().update_probs()
 
         hards = C.get()['architecture']['hard']['valid']
