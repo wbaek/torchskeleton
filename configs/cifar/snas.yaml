@@ -1,6 +1,6 @@
 architecture:
   operations: [none, skip, pool_avg_3, pool_max_3, conv_sep_3, conv_sep_5, conv_dil_2_3, conv_dil_2_5]
-  mixed_type: mixed
+  mixed_type: mixed_gumbel
   shared_alphas: True
   depth: 8
   steps: 4
@@ -31,3 +31,8 @@ optimizers:
     betas: [0.5, 0.999]
     weight_decay: 0.001
     amsgrad: False
+
+annealing:
+  tau_before: 'lambda e, last_epoch: max(0.01, 1 * math.exp(-0.03 * e))'
+  tau: 'lambda e, last_epoch: 0.01 + (1.0 - 0.01) * (1 + math.cos(math.pi * e / last_epoch)) / 2'
+  beta: 'lambda e, last_epoch: 0.25'

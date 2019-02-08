@@ -8,6 +8,7 @@ import torch
 import torch.nn.functional as F
 
 from .operations import Operations
+from ..ops import gumbel_softmax
 
 
 LOGGER = logging.getLogger(__name__)
@@ -41,7 +42,6 @@ class Mixed(torch.nn.Module):
         self._probs = F.softmax(self.alpha / self.tau, dim=0).view(1, -1)
         return self
 
-    @property
     def probs(self):
         if self._probs is None:
             self.update_probs()
@@ -51,9 +51,9 @@ class Mixed(torch.nn.Module):
         if not self.hard:
             out_tensors = torch.stack([op(x) for op in self.ops])
             out_shape = out_tensors.shape[1:]
-            out = torch.mm(self.probs, out_tensors.view(len(self.ops), -1)).view(out_shape)
+            out = torch.mm(self.probs(), out_tensors.view(len(self.ops), -1)).view(out_shape)
         else:
-            idx = torch.argmax(self.probs, 1).item()
+            idx = torch.argmax(self.probs(), 1).item()
             out = self.ops[idx](x)
         return out
 
@@ -64,7 +64,11 @@ class MixedGumbel(Mixed):
         self.beta = 1.0
 
     def update_probs(self):
-        self._probs = F.gumbel_softmax(self.alpha / self.tau, dim=0).view(1, -1)
+        if self.training:
+            weight = self.alpha.view(1, -1)
+            self._probs = gumbel_softmax(weight, tau=self.tau, beta=self.beta, hard=False)
+        else:
+            self._probs = F.softmax(self.alpha / self.tau, dim=0).view(1, -1)
         return self
 
 

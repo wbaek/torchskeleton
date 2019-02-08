@@ -86,7 +86,7 @@ class Cell(torch.nn.Module):
             from_path = OrderedDict()
             for from_, op in ops.items():
                 if isinstance(op, Mixed):
-                    prob, idx = torch.topk(op.probs[0][1:], k=1, dim=-1)  # without first ops (maybe zero)
+                    prob, idx = torch.topk(op.probs()[0][1:], k=1, dim=-1)  # without first ops (maybe zero)
                     prob, idx = float(prob.detach().cpu().numpy()[0]), int(idx.detach().cpu().numpy()[0]) + 1
                     from_path[from_] = {'idx': idx, 'name': op.names[idx], 'prob': prob}
                 else:

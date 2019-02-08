@@ -42,7 +42,7 @@ class DartsTrainer:
         elif mode == 'theta':
             metrics['loss'].backward(retain_graph=True)  # keep forward graph \wo update probs in Mixed
         else:
-            raise NotImplementedError('not support mode at %s', mode)
+            raise NotImplementedError('not support mode at %s' % mode)
 
         self.optimizers[mode].step()
         return logits, metrics

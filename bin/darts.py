@@ -2,6 +2,7 @@
 import os
 import sys
 import random
+import math  # pylint: disable=unused-import
 import shutil
 import datetime
 import logging
@@ -21,18 +22,23 @@ import skeleton
 class DartsNASNet(skeleton.darts.models.DartsBaseNet):
     def __init__(self, channels=16, steps=4, depth=8, num_classes=10):
         self.alphas = {'normal': {}, 'reduce': {}}
-        self.operations = [
-            'zero', 'skip', 'pool_avg_3', 'pool_max_3',
-            'conv_sep_3', 'conv_dil_2_3', 'conv_sep_5', 'conv_dil_2_5'
-        ]
         super(DartsNASNet, self).__init__(channels=channels, steps=steps, depth=depth, num_classes=num_classes)
 
     def create_cell(self, channels, in_channels, prev_channels, curr_reduce, prev_reduce):
+        mixed_type = C.get()['architecture']['mixed_type']
+        if mixed_type == 'mixed':
+            mixed = skeleton.darts.mixed.Mixed
+        elif mixed_type == 'mixed_gumbel':
+            mixed = skeleton.darts.mixed.MixedGumbel
+        else:
+            raise NotImplementedError('not support mixed type at %s' % mixed_type)
+        operation_names = C.get()['architecture']['operations']
+
         stride = 2 if curr_reduce else 1
         cell_type = 'reduce' if curr_reduce else 'normal'
         operations, alphas = skeleton.darts.mixed.DAG.create(
-            skeleton.darts.mixed.Mixed,
-            self.operations,
+            mixed,
+            operation_names,
             steps=4,
             channels=channels,
             stride=stride,
@@ -53,6 +59,7 @@ def main(args):
     device = torch.device('cuda', 0) if torch.cuda.is_available() else torch.device('cpu', 0)
 
     writer = skeleton.summary.FileWriter(args.base_dir, tags=['train', 'theta', 'alpha', 'valid', 'test'])
+    skeleton.summary.text('train', 'conf', str(C.get().dump().replace('\n', '<br/>').replace(' ', '&nbsp;')))
 
     batch_size = args.batch * args.gpus
     train_loader, valid_loader, test_loader, data_shape = skeleton.datasets.Cifar.loader(
@@ -60,8 +67,10 @@ def main(args):
         cv_ratio=0.5, cutout_length=0
     )
 
-    # TODO: create NASNetwork from config
-    model = DartsNASNet(channels=16, steps=4, depth=8, num_classes=args.num_class)
+    depth = C.get()['architecture']['depth']
+    steps = C.get()['architecture']['steps']
+    channels = C.get()['architecture']['initial_filters']
+    model = DartsNASNet(channels=channels, steps=steps, depth=depth, num_classes=args.num_class)
     model.to(device).train()
     print('---------- architecture ---------- ')
     model.register_trace_hooks()
@@ -95,9 +104,10 @@ def main(args):
     print('---------- done. ---------- ')
     writer.write(0)
 
+    theta = C.get()['optimizers']['theta']
     scheduler_theta = skeleton.optim.gradual_warm_up(
         skeleton.optim.get_discrete_epoch(
-            skeleton.optim.get_cosine_scheduler(init_lr=0.025, maximum_epoch=args.epoch, eta_min=0.001)
+            skeleton.optim.get_cosine_scheduler(init_lr=theta['lr'], maximum_epoch=args.epoch, eta_min=0.001)
         ),
         maximum_epoch=10, multiplier=batch_size / 96
     )
@@ -108,11 +118,12 @@ def main(args):
         steps_per_epoch=len(train_loader),
         clip_grad_max_norm=5.0,
         lr=scheduler_theta,
-        momentum=0.9, weight_decay=3e-4, nesterov=False
+        momentum=theta['momentum'], weight_decay=theta['weight_decay'], nesterov=theta['nesterov']
     )
 
+    alpha = C.get()['optimizers']['alpha']
     scheduler_alpha = skeleton.optim.gradual_warm_up(
-        lambda lr: 3e-4,
+        lambda lr: alpha['lr'],
         maximum_epoch=10, multiplier=batch_size / 96,
     )
     optimizer_alpha = skeleton.optim.ScheduledOptimzer(
@@ -121,7 +132,7 @@ def main(args):
         tag='alpha',
         steps_per_epoch=len(train_loader),
         lr=scheduler_alpha,
-        betas=(0.5, 0.999), weight_decay=1e-3
+        betas=alpha['betas'], weight_decay=alpha['weight_decay'], amsgrad=alpha['amsgrad']
     )
 
     if args.gpus > 1:
@@ -146,11 +157,35 @@ def main(args):
             module.drop_prob = 0.0
     model.apply(initialize)
 
+    def get_updator(e):
+        fns = {}
+        for attr, fn_str in C.get().conf.get('annealing', {}).items():
+            fn = eval(fn_str)  # pylint: disable=eval-used
+            value = fn(e, args.epoch)
+            fns[attr] = value
+            skeleton.summary.scalar('train', 'annealing/%s' % attr, value)
+
+        def update(module):
+            for attr, value in fns.items():
+                if hasattr(module, attr):
+                    module.attr = value
+        return update
+
     for epoch in range(args.epoch):
-        model.apply_hard(cell=False, mixed=False)
+        model.apply(get_updator(epoch))
+
+        hards = C.get()['architecture']['hard']['train']
+        model.apply_hard(cell=hards['cell'], mixed=hards['mixed'])
         metrics_train_alpha, metrics_train_theta = trainer.train(train_loader, valid_loader, verbose=args.debug)
+
+        model.eval().update_probs()
+
+        hards = C.get()['architecture']['hard']['valid']
+        model.apply_hard(cell=hards['cell'], mixed=hards['mixed'])
         metrics_valid = trainer.eval('valid', test_loader, verbose=args.debug)
-        model.apply_hard(cell=True, mixed=True)
+
+        hards = C.get()['architecture']['hard']['test']
+        model.apply_hard(cell=hards['cell'], mixed=hards['mixed'])
         metrics_test = trainer.eval('test', test_loader, verbose=args.debug)
 
         genotypes = []
@@ -197,6 +232,7 @@ if __name__ == '__main__':
     parsed_args = parser.parse_args()
 
     parsed_args.gpus = 1
+    parsed_args.debug = True
 
     log_format = '[%(asctime)s %(levelname)s] %(message)s'
     level = logging.DEBUG if parsed_args.debug else logging.INFO
