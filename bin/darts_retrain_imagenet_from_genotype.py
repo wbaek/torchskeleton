@@ -278,7 +278,8 @@ def main(args):
             }
         }, args.base_dir + '/models/epoch_%04d.pth' % epoch)
 
-    trainer.epoch('valid', test_loader, is_training=False, verbose=args.debug, desc='[final]')
+    metrics = trainer.epoch('valid', test_loader, is_training=False, verbose=args.debug, desc='[final]')
+    print(metrics)
 
 
 if __name__ == '__main__':

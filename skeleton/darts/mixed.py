@@ -17,6 +17,7 @@ class Mixed(torch.nn.Module):
     def __init__(self, names, channels, stride=1, affine=True, alpha=None, tau=1.0):
         super(Mixed, self).__init__()
 
+        self.names = names
         self.ops = torch.nn.ModuleList([
             Operations.create(name, channels, stride=stride, affine=affine) for name in names
         ])
@@ -25,6 +26,7 @@ class Mixed(torch.nn.Module):
             self.reset_parameters()
         self.tau = tau
         self._probs = None
+        self.hard = False
 
     def reset_parameters(self):
         initial = C.get().conf.get('architecture', {}).get('alphas', {}).get('initial', 'constant')
@@ -46,7 +48,7 @@ class Mixed(torch.nn.Module):
         return self._probs
 
     def forward(self, x):
-        if self.training:
+        if not self.hard:
             out_tensors = torch.stack([op(x) for op in self.ops])
             out_shape = out_tensors.shape[1:]
             out = torch.mm(self.probs, out_tensors.view(len(self.ops), -1)).view(out_shape)
@@ -54,6 +56,16 @@ class Mixed(torch.nn.Module):
             idx = torch.argmax(self.probs, 1).item()
             out = self.ops[idx](x)
         return out
+
+
+class MixedGumbel(Mixed):
+    def __init__(self, names, channels, stride=1, affine=True, alpha=None, tau=1.0):
+        super(MixedGumbel, self).__init__(names, channels, stride, affine, alpha, tau)
+        self.beta = 1.0
+
+    def update_probs(self):
+        self._probs = F.gumbel_softmax(self.alpha / self.tau, dim=0).view(1, -1)
+        return self
 
 
 class DAG:

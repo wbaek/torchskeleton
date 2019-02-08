@@ -6,3 +6,4 @@ from .operations import *
 from .cell import *
 from .mixed import *
 from .models import DartsBaseNet
+from .trainer import DartsTrainer

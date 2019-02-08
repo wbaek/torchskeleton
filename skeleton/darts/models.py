@@ -8,6 +8,8 @@ import torch
 
 from ..nn.modules import TraceModule, ProfileModule
 from ..nn import Split, Identity, Flatten, DelayedPass, KeepByPass
+from .mixed import Mixed
+from .cell import Cell
 
 
 LOGGER = logging.getLogger(__name__)
@@ -76,6 +78,29 @@ class DartsBaseNet(TraceModule, ProfileModule):
             return logits, None
         loss = self.loss_fn(input=logits, target=targets)
         return logits, loss
+
+    def update_probs(self):
+        def update(module):
+            if isinstance(module, Mixed):
+                module.update_probs()
+        return self.apply(update)
+
+    def apply_hard(self, cell=True, mixed=True):
+        def update(module):
+            if isinstance(module, Cell):
+                module.hard = cell
+            if isinstance(module, Mixed):
+                module.hard = mixed
+        return self.apply(update)
+
+    def genotypes(self):
+        genotypes = []
+        for name, module in self.named_modules():
+            if not isinstance(module, Cell):
+                continue
+            genotype = module.genotype()
+            genotypes.append((name, genotype))
+        return OrderedDict(genotypes)
 
     def half(self):
         # super(BasicNet, self).half()
