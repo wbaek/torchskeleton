@@ -1,13 +1,10 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
-import copy
-import math
 import random
 import shutil
 import datetime
 import logging
-from collections import OrderedDict
 
 from theconf import Config as C
 from theconf import ConfigArgumentParser
@@ -33,8 +30,8 @@ class DartsNASNet(skeleton.darts.models.DartsBaseNet):
     def create_cell(self, channels, in_channels, prev_channels, curr_reduce, prev_reduce):
         stride = 2 if curr_reduce else 1
         cell_type = 'reduce' if curr_reduce else 'normal'
-        operations, alphas = skeleton.darts.DAG.create(
-            skeleton.darts.Mixed,
+        operations, alphas = skeleton.darts.mixed.DAG.create(
+            skeleton.darts.mixed.Mixed,
             self.operations,
             steps=4,
             channels=channels,
@@ -44,7 +41,7 @@ class DartsNASNet(skeleton.darts.models.DartsBaseNet):
         )
         self.alphas[cell_type] = alphas
         nodes = [2, 3, 4, 5]
-        return skeleton.darts.Cell(operations, nodes, channels, in_channels, prev_channels, prev_reduce, affine=False)
+        return skeleton.darts.cell.Cell(operations, nodes, channels, in_channels, prev_channels, prev_reduce, affine=False)
 
 
 def main(args):
