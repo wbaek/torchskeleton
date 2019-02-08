@@ -82,7 +82,7 @@ MAML_FROM_CIFAR100 = OrderedDict([
         'path': [
             {'to': 2, 'from': 0, 'name': 'conv_sep_5'},
             {'to': 2, 'from': 1, 'name': 'conv_sep_3'},
-            {'to': 3, 'from': 1, 'name': 'skiip'},
+            {'to': 3, 'from': 1, 'name': 'skip'},
             {'to': 3, 'from': 2, 'name': 'conv_sep_5'},
             {'to': 4, 'from': 2, 'name': 'conv_sep_5'},
             {'to': 4, 'from': 3, 'name': 'conv_sep_5'},
