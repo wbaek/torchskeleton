@@ -109,7 +109,7 @@ def main(args):
         skeleton.optim.get_discrete_epoch(
             skeleton.optim.get_cosine_scheduler(init_lr=theta['lr'], maximum_epoch=args.epoch, eta_min=0.001)
         ),
-        maximum_epoch=10, multiplier=batch_size / 96
+        maximum_epoch=10, multiplier=batch_size / 64
     )
     optimizer_theta = skeleton.optim.ScheduledOptimzer(
         [p for n, p in model.named_parameters() if p.requires_grad and '.alpha' not in n],

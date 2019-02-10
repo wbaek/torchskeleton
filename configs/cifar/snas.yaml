@@ -18,7 +18,7 @@ architecture:
       mixed: True
 
   alphas:
-    initial: 'random'
+    initial: 'random1.0'
 
 optimizers:
   theta:
