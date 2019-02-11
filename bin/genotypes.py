@@ -105,3 +105,61 @@ MAML_FROM_CIFAR100 = OrderedDict([
         'node': [2, 3, 4, 5]
     })
 ])
+
+MAML_STOPGRAD_FROM_CIFAR10 = OrderedDict([
+    ('normal', {
+        'path': [
+            {'to': 2, 'from': 0, 'name': 'conv_sep_3'},
+            {'to': 2, 'from': 1, 'name': 'conv_sep_5'},
+            {'to': 3, 'from': 1, 'name': 'pool_max_3'},
+            {'to': 3, 'from': 2, 'name': 'conv_sep_5'},
+            {'to': 4, 'from': 2, 'name': 'conv_sep_5'},
+            {'to': 4, 'from': 3, 'name': 'conv_sep_5'},
+            {'to': 5, 'from': 3, 'name': 'conv_sep_5'},
+            {'to': 5, 'from': 4, 'name': 'conv_sep_5'},
+        ],
+        'node': [2, 3, 4, 5]
+    }),
+    ('reduce', {
+        'path': [
+            {'to': 2, 'from': 0, 'name': 'conv_sep_5'},
+            {'to': 2, 'from': 1, 'name': 'conv_sep_5'},
+            {'to': 3, 'from': 1, 'name': 'conv_sep_5'},
+            {'to': 3, 'from': 2, 'name': 'conv_sep_5'},
+            {'to': 4, 'from': 2, 'name': 'conv_sep_5'},
+            {'to': 4, 'from': 3, 'name': 'conv_sep_5'},
+            {'to': 5, 'from': 3, 'name': 'conv_sep_5'},
+            {'to': 5, 'from': 4, 'name': 'conv_sep_5'},
+        ],
+        'node': [2, 3, 4, 5]
+    })
+])
+
+MAML_STOPGRAD_FROM_CIFAR100 = OrderedDict([
+    ('normal', {
+        'path': [
+            {'to': 2, 'from': 0, 'name': 'conv_sep_5'},
+            {'to': 2, 'from': 1, 'name': 'conv_sep_5'},
+            {'to': 3, 'from': 1, 'name': 'pool_max_3'},
+            {'to': 3, 'from': 2, 'name': 'conv_sep_5'},
+            {'to': 4, 'from': 2, 'name': 'conv_sep_5'},
+            {'to': 4, 'from': 3, 'name': 'conv_sep_5'},
+            {'to': 5, 'from': 3, 'name': 'conv_sep_5'},
+            {'to': 5, 'from': 4, 'name': 'conv_sep_5'},
+        ],
+        'node': [2, 3, 4, 5]
+    }),
+    ('reduce', {
+        'path': [
+            {'to': 2, 'from': 0, 'name': 'conv_sep_5'},
+            {'to': 2, 'from': 1, 'name': 'conv_sep_5'},
+            {'to': 3, 'from': 1, 'name': 'conv_sep_5'},
+            {'to': 3, 'from': 2, 'name': 'conv_sep_5'},
+            {'to': 4, 'from': 2, 'name': 'conv_sep_5'},
+            {'to': 4, 'from': 3, 'name': 'conv_sep_5'},
+            {'to': 5, 'from': 3, 'name': 'conv_sep_5'},
+            {'to': 5, 'from': 4, 'name': 'conv_sep_5'},
+        ],
+        'node': [2, 3, 4, 5]
+    })
+])
