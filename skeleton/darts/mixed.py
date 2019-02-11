@@ -49,9 +49,10 @@ class Mixed(torch.nn.Module):
 
     def forward(self, x):
         if not self.hard:
+            probs = self.probs().to(device=x.device) if self.alpha.device != x.device else self.probs()
             out_tensors = torch.stack([op(x) for op in self.ops])
             out_shape = out_tensors.shape[1:]
-            out = torch.mm(self.probs(), out_tensors.view(len(self.ops), -1)).view(out_shape)
+            out = torch.mm(probs, out_tensors.view(len(self.ops), -1)).view(out_shape)
         else:
             idx = torch.argmax(self.probs(), 1).item()
             out = self.ops[idx](x)

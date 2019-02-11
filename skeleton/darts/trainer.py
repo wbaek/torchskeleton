@@ -48,22 +48,31 @@ class DartsTrainer:
         return logits, metrics
 
     def train(self, train_loader, valid_loader, desc='', verbose=False):
-        steps = len(train_loader)
+        steps = len(train_loader) // 2 if train_loader == valid_loader else len(train_loader)
         desc = desc if desc else '[train] [epoch:%04d]' % (self.global_epoch)
 
         generator = enumerate(train_loader)
         if verbose:
             generator = tqdm(generator, total=steps, desc=desc)
-        self.module.train()
+        if train_loader == valid_loader:
+            valid_loader = generator
+        else:
+            valid_loader = enumerate(valid_loader)
 
+        self.module.train()
         metric_hist = {'alpha': [], 'theta': []}
         with torch.set_grad_enabled(True):
             for _, (inputs, targets) in generator:
-                inputs_alpha, targets_alpha = next(iter(valid_loader))
+                _, (inputs_alpha, targets_alpha) = next(iter(valid_loader))
                 _, metrics = self.step('alpha', inputs_alpha, targets_alpha)
                 metrics = {key: float(value) for key, value in metrics.items()}
                 metric_hist['alpha'].append(metrics)
-                self.module.update_probs()
+
+                # change architecture
+                if isinstance(self.module, torch.nn.DataParallel):
+                    self.module.module.update_probs()
+                else:
+                    self.module.update_probs()
 
                 _, metrics = self.step('theta', inputs, targets)
                 metrics = {key: float(value) for key, value in metrics.items()}

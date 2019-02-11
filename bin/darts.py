@@ -61,11 +61,21 @@ def main(args):
     writer = skeleton.summary.FileWriter(args.base_dir, tags=['train', 'theta', 'alpha', 'valid', 'test'])
     skeleton.summary.text('train', 'conf', str(C.get().dump().replace('\n', '<br/>').replace(' ', '&nbsp;')))
 
+    cv_ratio = C.get()['train']['cross_validation_ratio']
+
     batch_size = args.batch * args.gpus
-    train_loader, valid_loader, test_loader, data_shape = skeleton.datasets.Cifar.loader(
-        batch_size, args.num_class,
-        cv_ratio=0.5, cutout_length=0
-    )
+    if cv_ratio > 0.0:
+        train_loader, valid_loader, test_loader, data_shape = skeleton.datasets.Cifar.loader(
+            batch_size, args.num_class,
+            cv_ratio=cv_ratio, cutout_length=0
+        )
+    else:
+        train_loader, test_loader, data_shape = skeleton.datasets.Cifar.loader(
+            batch_size, args.num_class,
+            cv_ratio=cv_ratio, cutout_length=0
+        )
+        valid_loader = train_loader
+
 
     depth = C.get()['architecture']['depth']
     steps = C.get()['architecture']['steps']
@@ -135,8 +145,7 @@ def main(args):
         betas=alpha['betas'], weight_decay=alpha['weight_decay'], amsgrad=alpha['amsgrad']
     )
 
-    if args.gpus > 1:
-        model = torch.nn.DataParallel(model, device_ids=list(range(args.gpus)), output_device=0)
+    model = torch.nn.DataParallel(model, device_ids=list(range(args.gpus)), output_device=0)
     model.register_forward_pre_hook(skeleton.nn.hooks.MoveToHook.get_forward_pre_hook(device=device, half=False))
     model.to(device).train()
     trainer = skeleton.darts.DartsTrainer(
@@ -176,7 +185,7 @@ def main(args):
 
         # train
         hards = C.get()['architecture']['hard']['train']
-        model.apply_hard(cell=hards['cell'], mixed=hards['mixed'])
+        model.module.apply_hard(cell=hards['cell'], mixed=hards['mixed'])
         metrics_train_alpha, metrics_train_theta = trainer.train(train_loader, valid_loader, verbose=args.debug)
 
         for name, param in model.named_parameters():
@@ -190,18 +199,18 @@ def main(args):
             skeleton.summary.histogram('train', 'alphas/%s/grad' % name, param.grad.detach().cpu().numpy())
 
         # eval
-        model.eval().update_probs()
+        model.module.eval().update_probs()
 
         hards = C.get()['architecture']['hard']['valid']
-        model.apply_hard(cell=hards['cell'], mixed=hards['mixed'])
+        model.module.apply_hard(cell=hards['cell'], mixed=hards['mixed'])
         metrics_valid = trainer.eval('valid', test_loader, verbose=args.debug)
 
         hards = C.get()['architecture']['hard']['test']
-        model.apply_hard(cell=hards['cell'], mixed=hards['mixed'])
+        model.module.apply_hard(cell=hards['cell'], mixed=hards['mixed'])
         metrics_test = trainer.eval('test', test_loader, verbose=args.debug)
 
         genotypes = []
-        for name, genotype in model.genotypes().items():
+        for name, genotype in model.module.genotypes().items():
             genotypes.append('[%s]' % name)
             genotypes += [str(path) for path in genotype['path']]
         genotypes_str = '\n'.join(genotypes)
@@ -244,6 +253,7 @@ if __name__ == '__main__':
     parsed_args = parser.parse_args()
 
     parsed_args.gpus = 1
+    parsed_args.batch = 200
     parsed_args.debug = True
 
     log_format = '[%(asctime)s %(levelname)s] %(message)s'

@@ -32,6 +32,9 @@ optimizers:
     weight_decay: 0.001
     amsgrad: False
 
+train:
+    cross_validation_ratio: 0.0
+
 annealing:
   tau_before: 'lambda e, last_epoch: max(0.01, 1 * math.exp(-0.03 * e))'
   tau: 'lambda e, last_epoch: 0.01 + (1.0 - 0.01) * (1 + math.cos(math.pi * e / last_epoch)) / 2'
