@@ -23,6 +23,8 @@ GENOTYPES = genotypes.ORIGINAL_DARTS
 # GENOTYPES = genotypes.MAML_FROM_CIFAR100
 # GENOTYPES = genotypes.MAML_STOPGRAD_FROM_CIFAR10
 # GENOTYPES = genotypes.MAML_STOPGRAD_FROM_CIFAR100
+# GENOTYPES = genotypes.MAML_CUTOUT_FROM_CIFAR100
+# GENOTYPES = genotypes.MAML_REPTILE_FROM_CIFAR100
 
 class DartsSearchedNet(skeleton.darts.models.DartsBaseNet):
     def __init__(self, channels=32, steps=4, depth=20, num_classes=10):
