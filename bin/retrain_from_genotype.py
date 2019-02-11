@@ -44,7 +44,7 @@ class DartsSearchedNet(skeleton.darts.models.DartsBaseNet):
         for path in GENOTYPES['normal' if not curr_reduce else 'reduce']['path']:
             new_path = copy.deepcopy(path)
             stride = 2 if path['from'] in [0, 1] and curr_reduce else 1
-            new_path['op'] = skeleton.darts.Operations.create(path['name'], channels, stride=stride, affine=True)
+            new_path['op'] = skeleton.darts.operations.Operations.create(path['name'], channels, stride=stride, affine=True)
             operations.append(new_path)
         nodes = GENOTYPES['normal' if not curr_reduce else 'reduce']['node']
         return skeleton.darts.cell.Cell(operations, nodes, channels, in_channels, prev_channels, prev_reduce, affine=True)
