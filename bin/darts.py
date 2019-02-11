@@ -124,7 +124,7 @@ def main(args):
     alpha = C.get()['optimizers']['alpha']
     scheduler_alpha = skeleton.optim.gradual_warm_up(
         lambda lr: alpha['lr'],
-        maximum_epoch=10, multiplier=batch_size / 96,
+        maximum_epoch=10, multiplier=batch_size / 64,
     )
     optimizer_alpha = skeleton.optim.ScheduledOptimzer(
         [p for n, p in model.named_parameters() if p.requires_grad and '.alpha' in n],
