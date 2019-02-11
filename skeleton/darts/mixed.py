@@ -8,6 +8,7 @@ import torch
 import torch.nn.functional as F
 
 from .operations import Operations
+from ..ops import gumbel_softmax
 
 
 LOGGER = logging.getLogger(__name__)
@@ -17,6 +18,7 @@ class Mixed(torch.nn.Module):
     def __init__(self, names, channels, stride=1, affine=True, alpha=None, tau=1.0):
         super(Mixed, self).__init__()
 
+        self.names = names
         self.ops = torch.nn.ModuleList([
             Operations.create(name, channels, stride=stride, affine=affine) for name in names
         ])
@@ -25,6 +27,7 @@ class Mixed(torch.nn.Module):
             self.reset_parameters()
         self.tau = tau
         self._probs = None
+        self.hard = False
 
     def reset_parameters(self):
         initial = C.get().conf.get('architecture', {}).get('alphas', {}).get('initial', 'constant')
@@ -39,21 +42,35 @@ class Mixed(torch.nn.Module):
         self._probs = F.softmax(self.alpha / self.tau, dim=0).view(1, -1)
         return self
 
-    @property
     def probs(self):
         if self._probs is None:
             self.update_probs()
         return self._probs
 
     def forward(self, x):
-        if self.training:
+        if not self.hard:
+            probs = self.probs().to(device=x.device) if self.alpha.device != x.device else self.probs()
             out_tensors = torch.stack([op(x) for op in self.ops])
             out_shape = out_tensors.shape[1:]
-            out = torch.mm(self.probs, out_tensors.view(len(self.ops), -1)).view(out_shape)
+            out = torch.mm(probs, out_tensors.view(len(self.ops), -1)).view(out_shape)
         else:
-            idx = torch.argmax(self.probs, 1).item()
+            idx = torch.argmax(self.probs(), 1).item()
             out = self.ops[idx](x)
         return out
+
+
+class MixedGumbel(Mixed):
+    def __init__(self, names, channels, stride=1, affine=True, alpha=None, tau=1.0):
+        super(MixedGumbel, self).__init__(names, channels, stride, affine, alpha, tau)
+        self.beta = 1.0
+
+    def update_probs(self):
+        if self.training:
+            weight = self.alpha.view(1, -1)
+            self._probs = gumbel_softmax(weight, tau=self.tau, beta=self.beta, hard=False)
+        else:
+            self._probs = F.softmax(self.alpha / self.tau, dim=0).view(1, -1)
+        return self
 
 
 class DAG:

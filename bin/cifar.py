@@ -177,8 +177,8 @@ if __name__ == '__main__':
     parser.add_argument('-e', '--epoch', type=int, default=30)
     parser.add_argument('--gpus', type=int, default=torch.cuda.device_count())
 
-    parser.add_argument('--base-dir', type=str, required=None)
-    parser.add_argument('--name', type=str, required=None)
+    parser.add_argument('--base-dir', type=str, default=None)
+    parser.add_argument('--name', type=str, default=None)
 
     parser.add_argument('--log-filename', type=str, default='')
     parser.add_argument('--debug', action='store_true')
