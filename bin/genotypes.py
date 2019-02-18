@@ -77,6 +77,53 @@ MAML_FROM_CIFAR10 = OrderedDict([
     })
 ])
 
+MAML_FROM_CIFAR10_ALL_INPUT = OrderedDict([
+    ('normal', {
+        'path': [
+            {'to': 2, 'from': 0, 'name': 'conv_sep_3'},
+            {'to': 2, 'from': 1, 'name': 'conv_sep_5'},
+
+            {'to': 3, 'from': 0, 'name': 'pool_max_3'},
+            {'to': 3, 'from': 1, 'name': 'conv_sep_5'},
+            {'to': 3, 'from': 2, 'name': 'conv_sep_5'},
+
+            {'to': 4, 'from': 0, 'name': 'pool_max_3'},
+            {'to': 4, 'from': 1, 'name': 'conv_sep_3'},
+            {'to': 4, 'from': 2, 'name': 'conv_sep_5'},
+            {'to': 4, 'from': 3, 'name': 'conv_sep_5'},
+
+            {'to': 5, 'from': 0, 'name': 'pool_max_3'},
+            {'to': 5, 'from': 1, 'name': 'pool_max_3'},
+            {'to': 5, 'from': 2, 'name': 'pool_max_3'},
+            {'to': 5, 'from': 3, 'name': 'conv_sep_5'},
+            {'to': 5, 'from': 4, 'name': 'conv_sep_5'},
+        ],
+        'node': [2, 3, 4, 5]
+    }),
+    ('reduce', {
+        'path': [
+            {'to': 2, 'from': 0, 'name': 'conv_sep_5'},
+            {'to': 2, 'from': 1, 'name': 'conv_sep_5'},
+
+            {'to': 3, 'from': 0, 'name': 'pool_max_3'},
+            {'to': 3, 'from': 1, 'name': 'conv_sep_5'},
+            {'to': 3, 'from': 2, 'name': 'conv_sep_5'},
+
+            {'to': 4, 'from': 0, 'name': 'conv_sep_5'},
+            {'to': 4, 'from': 1, 'name': 'conv_sep_5'},
+            {'to': 4, 'from': 2, 'name': 'conv_sep_5'},
+            {'to': 4, 'from': 3, 'name': 'conv_sep_5'},
+
+            {'to': 5, 'from': 0, 'name': 'pool_max_3'},
+            {'to': 5, 'from': 1, 'name': 'conv_sep_5'},
+            {'to': 5, 'from': 2, 'name': 'conv_sep_5'},
+            {'to': 5, 'from': 3, 'name': 'conv_sep_5'},
+            {'to': 5, 'from': 4, 'name': 'conv_sep_5'},
+        ],
+        'node': [2, 3, 4, 5]
+    })
+])
+
 MAML_FROM_CIFAR100 = OrderedDict([
     ('normal', {
         'path': [
@@ -99,6 +146,53 @@ MAML_FROM_CIFAR100 = OrderedDict([
             {'to': 3, 'from': 2, 'name': 'conv_sep_5'},
             {'to': 4, 'from': 2, 'name': 'conv_sep_5'},
             {'to': 4, 'from': 3, 'name': 'conv_sep_5'},
+            {'to': 5, 'from': 3, 'name': 'conv_sep_5'},
+            {'to': 5, 'from': 4, 'name': 'conv_sep_5'},
+        ],
+        'node': [2, 3, 4, 5]
+    })
+])
+
+MAML_FROM_CIFAR100_ALL_INPUT = OrderedDict([
+    ('normal', {
+        'path': [
+            {'to': 2, 'from': 0, 'name': 'conv_sep_5'},
+            {'to': 2, 'from': 1, 'name': 'conv_sep_3'},
+
+            {'to': 3, 'from': 0, 'name': 'conv_sep_5'},
+            {'to': 3, 'from': 1, 'name': 'skip'},
+            {'to': 3, 'from': 2, 'name': 'conv_sep_5'},
+
+            {'to': 4, 'from': 0, 'name': 'pool_max_3'},
+            {'to': 4, 'from': 1, 'name': 'pool_max_3'},
+            {'to': 4, 'from': 2, 'name': 'conv_sep_5'},
+            {'to': 4, 'from': 3, 'name': 'conv_sep_5'},
+
+            {'to': 5, 'from': 0, 'name': 'pool_max_3'},
+            {'to': 5, 'from': 1, 'name': 'pool_max_3'},
+            {'to': 5, 'from': 2, 'name': 'conv_sep_5'},
+            {'to': 5, 'from': 3, 'name': 'conv_sep_5'},
+            {'to': 5, 'from': 4, 'name': 'conv_sep_5'},
+        ],
+        'node': [2, 3, 4, 5]
+    }),
+    ('reduce', {
+        'path': [
+            {'to': 2, 'from': 0, 'name': 'conv_sep_5'},
+            {'to': 2, 'from': 1, 'name': 'conv_sep_5'},
+
+            {'to': 3, 'from': 0, 'name': 'pool_max_3'},
+            {'to': 3, 'from': 1, 'name': 'conv_sep_5'},
+            {'to': 3, 'from': 2, 'name': 'conv_sep_5'},
+
+            {'to': 4, 'from': 0, 'name': 'pool_max_3'},
+            {'to': 4, 'from': 1, 'name': 'conv_sep_5'},
+            {'to': 4, 'from': 2, 'name': 'conv_sep_5'},
+            {'to': 4, 'from': 3, 'name': 'conv_sep_5'},
+
+            {'to': 5, 'from': 0, 'name': 'pool_max_3'},
+            {'to': 5, 'from': 1, 'name': 'conv_sep_5'},
+            {'to': 5, 'from': 2, 'name': 'conv_sep_5'},
             {'to': 5, 'from': 3, 'name': 'conv_sep_5'},
             {'to': 5, 'from': 4, 'name': 'conv_sep_5'},
         ],
@@ -135,6 +229,53 @@ MAML_STOPGRAD_FROM_CIFAR10 = OrderedDict([
     })
 ])
 
+MAML_STOPGRAD_FROM_CIFAR10_ALL_INPUT = OrderedDict([
+    ('normal', {
+        'path': [
+            {'to': 2, 'from': 0, 'name': 'conv_sep_3'},
+            {'to': 2, 'from': 1, 'name': 'conv_sep_5'},
+
+            {'to': 3, 'from': 0, 'name': 'pool_max_3'},
+            {'to': 3, 'from': 1, 'name': 'pool_max_3'},
+            {'to': 3, 'from': 2, 'name': 'conv_sep_5'},
+
+            {'to': 4, 'from': 0, 'name': 'pool_max_3'},
+            {'to': 4, 'from': 1, 'name': 'pool_max_3'},
+            {'to': 4, 'from': 2, 'name': 'conv_sep_5'},
+            {'to': 4, 'from': 3, 'name': 'conv_sep_5'},
+
+            {'to': 5, 'from': 0, 'name': 'pool_max_3'},
+            {'to': 5, 'from': 1, 'name': 'pool_max_3'},
+            {'to': 5, 'from': 2, 'name': 'conv_sep_5'},
+            {'to': 5, 'from': 3, 'name': 'conv_sep_5'},
+            {'to': 5, 'from': 4, 'name': 'conv_sep_5'},
+        ],
+        'node': [2, 3, 4, 5]
+    }),
+    ('reduce', {
+        'path': [
+            {'to': 2, 'from': 0, 'name': 'conv_sep_5'},
+            {'to': 2, 'from': 1, 'name': 'conv_sep_5'},
+
+            {'to': 3, 'from': 0, 'name': 'pool_max_3'},
+            {'to': 3, 'from': 1, 'name': 'conv_sep_5'},
+            {'to': 3, 'from': 2, 'name': 'conv_sep_5'},
+
+            {'to': 4, 'from': 0, 'name': 'pool_max_3'},
+            {'to': 4, 'from': 1, 'name': 'conv_sep_5'},
+            {'to': 4, 'from': 2, 'name': 'conv_sep_5'},
+            {'to': 4, 'from': 3, 'name': 'conv_sep_5'},
+
+            {'to': 5, 'from': 0, 'name': 'pool_max_3'},
+            {'to': 5, 'from': 1, 'name': 'conv_sep_5'},
+            {'to': 5, 'from': 2, 'name': 'conv_sep_5'},
+            {'to': 5, 'from': 3, 'name': 'conv_sep_5'},
+            {'to': 5, 'from': 4, 'name': 'conv_sep_5'},
+        ],
+        'node': [2, 3, 4, 5]
+    })
+])
+
 MAML_STOPGRAD_FROM_CIFAR100 = OrderedDict([
     ('normal', {
         'path': [
@@ -163,6 +304,54 @@ MAML_STOPGRAD_FROM_CIFAR100 = OrderedDict([
         'node': [2, 3, 4, 5]
     })
 ])
+
+MAML_STOPGRAD_FROM_CIFAR100_ALL_INPUT = OrderedDict([
+    ('normal', {
+        'path': [
+            {'to': 2, 'from': 0, 'name': 'conv_sep_5'},
+            {'to': 2, 'from': 1, 'name': 'conv_sep_5'},
+
+            {'to': 3, 'from': 0, 'name': 'pool_max_3'},
+            {'to': 3, 'from': 1, 'name': 'pool_max_3'},
+            {'to': 3, 'from': 2, 'name': 'conv_sep_5'},
+
+            {'to': 4, 'from': 0, 'name': 'pool_max_3'},
+            {'to': 4, 'from': 1, 'name': 'pool_max_3'},
+            {'to': 4, 'from': 2, 'name': 'conv_sep_5'},
+            {'to': 4, 'from': 3, 'name': 'conv_sep_5'},
+
+            {'to': 5, 'from': 0, 'name': 'pool_max_3'},
+            {'to': 5, 'from': 1, 'name': 'pool_max_3'},
+            {'to': 5, 'from': 2, 'name': 'pool_max_3'},
+            {'to': 5, 'from': 3, 'name': 'conv_sep_5'},
+            {'to': 5, 'from': 4, 'name': 'conv_sep_5'},
+        ],
+        'node': [2, 3, 4, 5]
+    }),
+    ('reduce', {
+        'path': [
+            {'to': 2, 'from': 0, 'name': 'conv_sep_5'},
+            {'to': 2, 'from': 1, 'name': 'conv_sep_5'},
+
+            {'to': 3, 'from': 0, 'name': 'conv_sep_5'},
+            {'to': 3, 'from': 1, 'name': 'conv_sep_5'},
+            {'to': 3, 'from': 2, 'name': 'conv_sep_5'},
+
+            {'to': 4, 'from': 0, 'name': 'pool_max_3'},
+            {'to': 4, 'from': 1, 'name': 'conv_sep_5'},
+            {'to': 4, 'from': 2, 'name': 'conv_sep_5'},
+            {'to': 4, 'from': 3, 'name': 'conv_sep_5'},
+
+            {'to': 5, 'from': 0, 'name': 'pool_max_3'},
+            {'to': 5, 'from': 1, 'name': 'conv_sep_5'},
+            {'to': 5, 'from': 2, 'name': 'conv_sep_5'},
+            {'to': 5, 'from': 3, 'name': 'conv_sep_5'},
+            {'to': 5, 'from': 4, 'name': 'conv_sep_5'},
+        ],
+        'node': [2, 3, 4, 5]
+    })
+])
+
 
 MAML_CUTOUT_FROM_CIFAR100 = OrderedDict([
     ('normal', {
