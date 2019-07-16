@@ -1,0 +1,155 @@
+# Python CircleCI 2.0 configuration file
+# Check https://circleci.com/docs/2.0/language-python/ for more details
+
+version: 2
+jobs:
+  test_pip_install:
+    docker:
+      - image: circleci/python:3.6.5
+
+    working_directory: ~/repo
+
+    steps:
+      - checkout
+
+      - restore_cache:
+          keys:
+          - python3-dependencies-pip-{{ checksum "requirements.txt" }}
+          - python3-dependencies-pip-
+
+      - run:
+          name: install dependencies
+          command: |
+            python3 -m venv venv
+            . venv/bin/activate
+            sudo apt-get update
+            sudo apt-get install -y libcap-dev
+            pip install --upgrade setuptools
+            pip install pytest pytest-cov pytest-datafiles
+            pip install torch torchvision
+            pip install git+https://github.com/wbaek/theconf.git
+            python -c "import torchvision; torchvision.datasets.CIFAR10('./data', train=True, download=True)"
+            python -c "import torchvision; torchvision.datasets.CIFAR10('./data', train=False, download=True)"
+            python -c "import torchvision; torchvision.datasets.CIFAR100('./data', train=True, download=True)"
+            python -c "import torchvision; torchvision.datasets.CIFAR100('./data', train=False, download=True)"
+
+
+      - save_cache:
+          paths:
+            - ./venv
+          key: python3-dependencies-pip-{{ checksum "requirements.txt" }}
+
+      - run:
+          name: run tests
+          command: |
+            . venv/bin/activate
+            pip install git+https://github.com/wbaek/pytorch_skeleton.git@${CIRCLE_BRANCH}
+            rm -rf skeleton
+            py.test --junit-xml test-reports/junit.xml --cov=skeleton --cov-report=html tests --ignore=tests/datasets/test_imagenet.py
+
+      - store_test_results:
+          path: test-reports
+
+      - store_artifacts:
+          path: ./htmlcov
+          destination: test-coverage-python3
+
+  build_python3:
+    docker:
+      - image: circleci/python:3.6.5
+
+    working_directory: ~/repo
+
+    steps:
+      - checkout
+
+      - restore_cache:
+          keys:
+          - python3-dependencies-with-data-{{ checksum "requirements.txt" }}
+          - python3-dependencies-with-data-
+
+      - run:
+          name: install dependencies
+          command: |
+            python3 -m venv venv
+            . venv/bin/activate
+            sudo apt-get update
+            sudo apt-get install -y libcap-dev
+            pip install --upgrade setuptools
+            pip install -r requirements.txt
+            python -c "import torchvision; torchvision.datasets.CIFAR10('./data', train=True, download=True)"
+            python -c "import torchvision; torchvision.datasets.CIFAR10('./data', train=False, download=True)"
+            python -c "import torchvision; torchvision.datasets.CIFAR100('./data', train=True, download=True)"
+            python -c "import torchvision; torchvision.datasets.CIFAR100('./data', train=False, download=True)"
+
+      - save_cache:
+          paths:
+            - ./venv
+          key: python3-dependencies-with-data-{{ checksum "requirements.txt" }}
+
+      - run:
+          name: run tests
+          command: |
+            . venv/bin/activate
+            py.test --junit-xml test-reports/junit.xml --cov=skeleton --cov-report=html tests --ignore=tests/datasets/test_imagenet.py
+
+      - store_test_results:
+          path: test-reports
+
+      - store_artifacts:
+          path: ./htmlcov
+          destination: test-coverage-python3
+
+  build_python2:
+    docker:
+      - image: circleci/python:2.7.15
+
+    working_directory: ~/repo
+
+    steps:
+      - checkout
+
+      - restore_cache:
+          keys:
+          - python2-dependencies-with-data-{{ checksum "requirements.txt" }}
+          - python2-dependencies-with-data-
+
+      - run:
+          name: install dependencies
+          command: |
+            python2 -m virtualenv venv
+            . venv/bin/activate
+            sudo apt-get update
+            sudo apt-get install -y libcap-dev
+            pip install --upgrade setuptools
+            pip install -r requirements.txt
+            python -c "import torchvision; torchvision.datasets.CIFAR10('./data', train=True, download=True)"
+            python -c "import torchvision; torchvision.datasets.CIFAR10('./data', train=False, download=True)"
+            python -c "import torchvision; torchvision.datasets.CIFAR100('./data', train=True, download=True)"
+            python -c "import torchvision; torchvision.datasets.CIFAR100('./data', train=False, download=True)"
+
+      - save_cache:
+          paths:
+            - ./venv
+          key: python2-dependencies-with-data-{{ checksum "requirements.txt" }}
+
+      - run:
+          name: run tests
+          command: |
+            . venv/bin/activate
+            py.test --junit-xml test-reports/junit.xml --cov=skeleton --cov-report=html tests --ignore=tests/datasets/test_imagenet.py
+
+      - store_test_results:
+          path: test-reports
+
+      - store_artifacts:
+          path: ./htmlcov
+          destination: test-coverage-python2
+
+workflows:
+  version: 2
+  build_and_test:
+    jobs:
+      - test_pip_install
+      - build_python3
+      - build_python2
