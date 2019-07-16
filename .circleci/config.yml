@@ -76,7 +76,9 @@ jobs:
             sudo apt-get update
             sudo apt-get install -y libcap-dev
             pip install --upgrade setuptools
+            pip install torch torchvision
             pip install -r requirements.txt
+            pip install -r requirements.dev.txt
             python -c "import torchvision; torchvision.datasets.CIFAR10('./data', train=True, download=True)"
             python -c "import torchvision; torchvision.datasets.CIFAR10('./data', train=False, download=True)"
             python -c "import torchvision; torchvision.datasets.CIFAR100('./data', train=True, download=True)"
@@ -122,7 +124,9 @@ jobs:
             sudo apt-get update
             sudo apt-get install -y libcap-dev
             pip install --upgrade setuptools
+            pip install torch torchvision
             pip install -r requirements.txt
+            pip install -r requirements.dev.txt
             python -c "import torchvision; torchvision.datasets.CIFAR10('./data', train=True, download=True)"
             python -c "import torchvision; torchvision.datasets.CIFAR10('./data', train=False, download=True)"
             python -c "import torchvision; torchvision.datasets.CIFAR100('./data', train=True, download=True)"

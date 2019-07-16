@@ -11,7 +11,7 @@
 ```
 apt update
 apt install -y libsm6 libxext-dev libxrender-dev libcap-dev
-pip install -y torch torchvision
+pip install torch torchvision
 pip install -r requirements.txt
 ```
 
