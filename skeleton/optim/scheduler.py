@@ -30,7 +30,7 @@ def get_change_scale(scheduler, init_scale=1.0):
 
 def get_step_scheduler(init_lr, step_size, gamma=0.1):
     def schedule(e, **kwargs):
-        lr = init_lr * gamma ** (e // step_size)
+        lr = init_lr * gamma ** int(e / step_size)
         return lr
     return schedule
 
