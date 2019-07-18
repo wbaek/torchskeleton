@@ -38,3 +38,32 @@ class Accuracy(AccuracyMany):
     def forward(self, output, target):
         res = super(Accuracy, self).forward(output, target)
         return res[0] * self.scale
+
+class Fscore(torch.nn.Module):
+    def __init__(self, threshold=0.5, beta=1, eps=1e-9):
+        super(Fscore, self).__init__()
+        self.threshold = threshold
+        self.beta = beta
+        self.eps = eps
+
+    def forward(self, output, target):
+        with torch.no_grad():
+            beta2 = self.beta ** 2
+
+            if output.shape != target.shape and target.dtype == torch.long:
+                y_onehot = torch.zeros(*output.shape).to(device=target.device)
+                y_onehot.scatter_(1, target.unsqueeze(1), 1)
+                target = y_onehot
+
+            y_pred = torch.ge(output.float(), self.threshold).float()
+            y_true = target.float()
+
+            true_positive = (y_pred * y_true).sum(dim=1)
+            precision = true_positive.div(y_pred.sum(dim=1).add(self.eps))
+            recall = true_positive.div(y_true.sum(dim=1).add(self.eps))
+
+        return {
+            'fscore': torch.mean((precision * recall).div(precision.mul(beta2) + recall + self.eps).mul(1 + beta2)),
+            'precision': torch.mean(precision),
+            'recall': torch.mean(recall)
+        }
