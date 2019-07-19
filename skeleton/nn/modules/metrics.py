@@ -39,6 +39,13 @@ class Accuracy(AccuracyMany):
         res = super(Accuracy, self).forward(output, target)
         return res[0] * self.scale
 
+
+def to_onehot(labels, shape):
+    onehot = torch.zeros(*shape)
+    onehot.scatter_(1, labels.unsqueeze(1), 1)
+    return onehot
+
+
 class Fscore(torch.nn.Module):
     def __init__(self, threshold=0.5, beta=1, eps=1e-9):
         super(Fscore, self).__init__()
@@ -51,9 +58,7 @@ class Fscore(torch.nn.Module):
             beta2 = self.beta ** 2
 
             if output.shape != target.shape and target.dtype == torch.long:
-                y_onehot = torch.zeros(*output.shape).to(device=target.device)
-                y_onehot.scatter_(1, target.unsqueeze(1), 1)
-                target = y_onehot
+                target = to_onehot(target, output.shape).to(device=target.device)
 
             y_pred = torch.ge(output.float(), self.threshold).float()
             y_true = target.float()
