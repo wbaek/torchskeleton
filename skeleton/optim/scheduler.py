@@ -28,17 +28,23 @@ def get_change_scale(scheduler, init_scale=1.0):
     return schedule
 
 
-def get_step_scheduler(init_lr, step_size, gamma=0.1):
+def get_step_scheduler(init_lr, step_size, gamma=0.1, scheduler=None):
     def schedule(e, **kwargs):
-        lr = init_lr * gamma ** int(e / step_size)
+        lr = init_lr
+        if scheduler is not None:
+            lr = scheduler(e, **kwargs)
+        lr = lr * gamma ** int(e / step_size)
         return lr
     return schedule
 
 
-def get_cosine_scheduler(init_lr, maximum_epoch, eta_min=0):
+def get_cosine_scheduler(init_lr, maximum_epoch, eta_min=0, scheduler=None):
     def schedule(e, **kwargs):
+        lr = init_lr
+        if scheduler is not None:
+            lr = scheduler(e, **kwargs)
         maximum = kwargs['maximum_epoch'] if 'maximum_epoch' in kwargs else maximum_epoch
-        lr = eta_min + (init_lr - eta_min) * (1 + math.cos(math.pi * e / maximum)) / 2
+        lr = eta_min + (lr - eta_min) * (1 + math.cos(math.pi * e / maximum)) / 2
         return lr
     return schedule
 
