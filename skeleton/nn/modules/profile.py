@@ -77,7 +77,7 @@ def count_conv_flops(conv_module, input, output):
 
     active_elements_count = batch_size * output_height * output_width
 
-    if conv_module.__mask__ is not None:
+    if hasattr(conv_module, '__mask__') and conv_module.__mask__ is not None:
         # (b, 1, h, w)
         flops_mask = conv_module.__mask__.expand(batch_size, 1, output_height, output_width)
         active_elements_count = flops_mask.sum()
