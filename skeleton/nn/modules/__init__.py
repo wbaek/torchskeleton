@@ -6,3 +6,4 @@ from .wrappers import *
 from .loss import *
 from .metrics import *
 from .hooks import *
+from .profile import Profiler
