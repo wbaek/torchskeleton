@@ -5,6 +5,16 @@ import logging
 import torch
 
 
+'''
+# preforked/prefech dataloader
+num_steps = len(dataset) // batch_size
+dataloader = skeleton.data.FixedSizeDataLoader(dataset, steps=None, batch_size=batch_size)
+dataloader = skeleton.data.PrefetchDataLoader(dataloder, device=torch.device('cuda', 0))
+dataiter = iter(dataloader)
+
+for step in range(num_steps):
+    data =next(dataiter)
+'''
 LOGGER = logging.getLogger(__name__)
 
 
@@ -30,8 +40,12 @@ class FixedSizeDataLoader:
         return self.steps
 
     def __iter__(self):
-        for _, data in zip(range(self.steps), self.dataloader):
-            yield ([t[0] for t in data] if self.batch_size is None else data)
+        if self.steps is not None:
+            for _, data in zip(range(self.steps), self.dataloader):
+                yield ([t[0] for t in data] if self.batch_size is None else data)
+        else:
+            for data in self.dataloader:
+                yield ([t[0] for t in data] if self.batch_size is None else data)
 
 
 class InfiniteSampler(torch.utils.data.sampler.Sampler):
@@ -48,3 +62,37 @@ class InfiniteSampler(torch.utils.data.sampler.Sampler):
 
     def __len__(self):
         return len(self.data_source)
+
+
+class PrefetchDataLoader:
+    def __init__(self, dataloader, device):
+        self.loader = dataloader
+        self.iter = None
+        self.device = device
+        self.stream = torch.cuda.Stream()
+        self.next_data =None
+
+    def __len__(self):
+        return len(self.loader)
+
+    def async_prefech(self):
+        try:
+            self.next_data = next(self.iter)
+        except StopIteration:
+            self.next_data = None
+            return
+
+        with torch.cuda.stream(self.stream):
+            if isinstance(self.next_data, torch.Tensor):
+                self.next_data = self.next_data.to(device=self.device, non_blocking=True)
+            elif isinstance(self.next_data, (list, tuple)):
+                self.next_data = [t.to(device=self.device, non_blocking=True) for t in self.next_data]
+
+    def __iter__(self):
+        self.iter = iter(self.loader)
+        self.async_prefech()
+        while self.next_data is not None:
+            torch.cuda.current_stream().wait_stream(self.stream)
+            data = self.next_data
+            self.async_prefech()
+            yield data
