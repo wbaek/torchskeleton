@@ -1,8 +1,13 @@
 # -*- coding: utf-8 -*-
+import os
 import logging
+import shutil
+import hashlib
+import collections
 
 import numpy as np
 import torch
+from PIL import Image
 
 
 LOGGER = logging.getLogger(__name__)
@@ -32,3 +37,19 @@ class Cutout:
 
     def __repr__(self):
         return self.__class__.__name__ + '(height={0}, width={1})'.format(self.height, self.width)
+
+
+class ImageWriter:
+    def __init__(self, root, delete_folder_exists=True):
+        self.root = root
+
+        if delete_folder_exists and os.path.exists(self.root):
+            shutil.rmtree(self.root)
+        os.makedirs(self.root, exist_ok=True)
+
+    def __call__(self, image):
+        hex = hashlib.md5(image.tobytes()).hexdigest()
+        filename = os.path.join(self.root,  hex + '.jpg')
+        with open(filename, 'wb') as f:
+            image.save(f, format='jpeg')
+        return image
