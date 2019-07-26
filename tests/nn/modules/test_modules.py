@@ -2,7 +2,7 @@
 import torch
 import numpy as np
 
-from skeleton.nn.modules.wrappers import Mul, Flatten, Concat, MergeSum, Split, DelayedPass
+from skeleton.nn.modules.modules import Mul, Flatten, Concat, MergeSum, Split, DelayedPass
 
 
 def test_mul():
