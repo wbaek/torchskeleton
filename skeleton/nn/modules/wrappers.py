@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=arguments-differ, abstract-method
 from __future__ import absolute_import
+import random
 import logging
 
 import torch
@@ -30,14 +31,15 @@ def rand_bbox(size, lam):
 
 
 class CutMix(torch.nn.Module):
-    def __init__(self, module, criterion, beta):
+    def __init__(self, module, criterion, prob=0.5, beta=1.0):
         super(CutMix, self).__init__()
         self.module = module
         self.criterion = criterion
+        self.prob = prob
         self.beta = beta
 
     def forward(self, input, target):  # pylint: disable=redefined-builtin
-        if self.training:
+        if self.training and random.random() <= self.prob:
             beta_lambda = np.random.beta(self.beta, self.beta)
             rand_index = torch.randperm(input.size()[0]).to(device=input.device)
 

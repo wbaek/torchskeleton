@@ -13,6 +13,15 @@ from PIL import Image
 LOGGER = logging.getLogger(__name__)
 
 
+class Pad:
+    def __init__(self, border, mode='reflect'):
+        self.border = border
+        self.mode = mode
+
+    def __call__(self, image):
+        return np.pad(image, [(self.border, self.border), (self.border, self.border), (0, 0)], mode=self.mode)
+
+
 class Cutout:
     def __init__(self, height, width):
         self.height = height
@@ -21,8 +30,8 @@ class Cutout:
     def __call__(self, image):
         h, w = image.size(1), image.size(2)
         mask = np.ones((h, w), np.float32)
-        y = np.random.randint(h)
-        x = np.random.randint(w)
+        y = np.random.choice(range(h))
+        x = np.random.choice(range(w))
 
         y1 = np.clip(y - self.height // 2, 0, h)
         y2 = np.clip(y + self.height // 2, 0, h)
@@ -37,6 +46,24 @@ class Cutout:
 
     def __repr__(self):
         return self.__class__.__name__ + '(height={0}, width={1})'.format(self.height, self.width)
+
+
+class TensorRandomHorizontalFlip:
+    def __call__(self, tensor):
+        choice = np.random.choice([True, False])
+        return torch.flip(tensor, dims=[-1]) if choice else tensor
+
+
+class TensorRandomCrop:
+    def __init__(self, height, width):
+        self.height = height
+        self.width = width
+
+    def __call__(self, tensor):
+        C, H, W = tensor.shape
+        h = np.random.choice(range(H + 1 - self.height))
+        w = np.random.choice(range(W + 1 - self.width))
+        return tensor[:, h:h+self.height, w:w+self.width]
 
 
 class ImageWriter:

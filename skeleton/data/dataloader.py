@@ -65,12 +65,13 @@ class InfiniteSampler(torch.utils.data.sampler.Sampler):
 
 
 class PrefetchDataLoader:
-    def __init__(self, dataloader, device):
+    def __init__(self, dataloader, device, half=False):
         self.loader = dataloader
         self.iter = None
         self.device = device
+        self.dtype = torch.float16 if half else torch.float32
         self.stream = torch.cuda.Stream()
-        self.next_data =None
+        self.next_data = None
 
     def __len__(self):
         return len(self.loader)
@@ -84,9 +85,11 @@ class PrefetchDataLoader:
 
         with torch.cuda.stream(self.stream):
             if isinstance(self.next_data, torch.Tensor):
-                self.next_data = self.next_data.to(device=self.device, non_blocking=True)
+                self.next_data = self.next_data.to(dtype=self.dtype, device=self.device, non_blocking=True)
             elif isinstance(self.next_data, (list, tuple)):
-                self.next_data = [t.to(device=self.device, non_blocking=True) for t in self.next_data]
+                self.next_data = [
+                    t.to(dtype=self.dtype, device=self.device, non_blocking=True) if t.is_floating_point() else t.to(device=self.device, non_blocking=True) for t in self.next_data
+                ]
 
     def __iter__(self):
         self.iter = iter(self.loader)
