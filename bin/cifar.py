@@ -72,7 +72,7 @@ def dataloaders(base, download, batch_size, device):
         batch_size=batch_size,
         shuffle=True,
         num_workers=32,
-        pin_memory=True,
+        pin_memory=False,
         drop_last=True
     )
 
@@ -81,6 +81,21 @@ def dataloaders(base, download, batch_size, device):
             skeleton.data.TransformDataset(
                 test_dataset,
                 transform=torchvision.transforms.Compose([
+                    # skeleton.data.transforms.Pad(4),
+                    # torchvision.transforms.ToPILImage(),
+                    # torchvision.transforms.TenCrop((32, 32)),
+                    # torchvision.transforms.Lambda(
+                    #     lambda crops: torch.stack([
+                    #         torchvision.transforms.Compose([
+                    #             torchvision.transforms.ToTensor(),
+                    #             torchvision.transforms.Normalize(
+                    #                 mean=(0.4914, 0.4822, 0.4465),
+                    #                 std=(0.2471, 0.2435, 0.2616)
+                    #             )
+                    #         ])(crop) for crop in crops
+                    #     ])
+                    # )
+                    # torchvision.transforms.CenterCrop((28, 28)),
                     torchvision.transforms.ToTensor(),
                     torchvision.transforms.Normalize(
                         mean=(0.4914, 0.4822, 0.4465),
@@ -96,10 +111,10 @@ def dataloaders(base, download, batch_size, device):
             ),
             num_workers=16
         ),
-        batch_size=batch_size,
+        batch_size=batch_size // 2,
         shuffle=False,
         num_workers=0,
-        pin_memory=True,
+        pin_memory=False,
         drop_last=False
     )
 
@@ -108,9 +123,10 @@ def dataloaders(base, download, batch_size, device):
     return int(len(train_dataset) // batch_size), train_dataloader, test_dataloader
 
 
-def conv_bn(channels_in, channels_out, stride=1, activation=True):
+def conv_bn(channels_in, channels_out, kernel_size=3, stride=1, padding=1, groups=1, activation=True):
     return torch.nn.Sequential(
-        torch.nn.Conv2d(channels_in, channels_out, kernel_size=3, stride=stride, padding=1, bias=False),
+        torch.nn.Conv2d(channels_in, channels_out,
+                        kernel_size=kernel_size, stride=stride, padding=padding, groups=groups, bias=False),
         torch.nn.BatchNorm2d(channels_out),
         torch.nn.ReLU(True) if activation else torch.nn.Identity()
     )
@@ -118,35 +134,52 @@ def conv_bn(channels_in, channels_out, stride=1, activation=True):
 
 def build_network(num_class=10):
     return torch.nn.Sequential(
-        conv_bn(3, 128),
-        conv_bn(128, 128, stride=1),
-        torch.nn.MaxPool2d(2),  # 16x16
+        # torch.nn.Sequential(
+        #     skeleton.nn.StrideConv2d(3, 128, kernel_size=3, padding=1),  # 16
+        #     torch.nn.BatchNorm2d(128),
+        #     torch.nn.ReLU(True),
+        # ),dd
+        conv_bn(3, 128, kernel_size=3, stride=1, padding=1),
+        conv_bn(128, 128, kernel_size=3, stride=1, padding=1),
+        torch.nn.MaxPool2d(2),
 
         skeleton.nn.Split(  # residual
             torch.nn.Identity(),
             torch.nn.Sequential(
                 conv_bn(128, 128),
                 conv_bn(128, 128),
+                # skeleton.nn.SEBlock(128),
             )
         ),
         skeleton.nn.MergeSum(),
+        # torch.nn.ReLU(inplace=True),
 
-        conv_bn(128, 256, stride=1),
-        torch.nn.MaxPool2d(2),  # 8x8
+        conv_bn(128, 256, kernel_size=3, stride=1, padding=1),
+        torch.nn.MaxPool2d(2),  # 8
 
-        conv_bn(256, 512, stride=1),
-        torch.nn.MaxPool2d(2),  # 4x4
+        # skeleton.nn.Split(  # residual
+        #     torch.nn.Identity(),
+        #     torch.nn.Sequential(
+        #         conv_bn(256, 256),
+        #         conv_bn(256, 256),
+        #     )
+        # ),
+        # skeleton.nn.MergeSum(),
+
+        conv_bn(256, 512, kernel_size=3, stride=1, padding=1),
+        torch.nn.MaxPool2d(2),  # 4
 
         skeleton.nn.Split(  # residual
             torch.nn.Identity(),
             torch.nn.Sequential(
                 conv_bn(512, 512),
                 conv_bn(512, 512),
+                # skeleton.nn.SEBlock(512),
             )
         ),
         skeleton.nn.MergeSum(),
 
-        torch.nn.MaxPool2d(4),  # 1x1
+        torch.nn.AdaptiveMaxPool2d((1, 1)),  # 1x1
         skeleton.nn.Flatten(),
         torch.nn.Linear(512, num_class, bias=False),
         skeleton.nn.Mul(0.125)
@@ -170,7 +203,7 @@ def main():
 
     steps_per_epoch, train_loader, test_loader = dataloaders(args.dataset_base, args.download, batch_size, device)
     train_iter = iter(train_loader)
-    # steps_per_epoch = int(steps_per_epoch * 3 / 4)
+    steps_per_epoch = int(steps_per_epoch * 1.0)
 
     model = build_network().to(device=device)
     for module in model.modules():
@@ -186,10 +219,6 @@ def main():
     lr_scheduler = skeleton.optim.get_change_scale(
         skeleton.optim.get_piecewise([0, 5, epoch], [0.1, 0.4, 0.001]),
         1.0 / batch_size
-    )
-    decay_scheduler = skeleton.optim.get_change_scale(
-        skeleton.optim.get_piecewise([0, 5, epoch], [0, 1e-5, 5e-4]),
-        1.0 * batch_size
     )
     optimizer = skeleton.optim.ScheduledOptimizer(
         [p for p in model.parameters() if p.requires_grad],
@@ -229,6 +258,7 @@ def main():
 
     # train
     for epoch in range(epoch):
+        timer('init', reset_step=True)
         model.train()
         loss_list = []
         for step in range(steps_per_epoch):
@@ -241,7 +271,7 @@ def main():
             optimizer.step()
             model.zero_grad()
             loss_list.append(loss.mean().detach().cpu().numpy())
-            timer('train')
+        timer('train')
 
         model.eval()
         accuracy_list = []
@@ -260,7 +290,7 @@ def main():
 
                 accuracy = metrics(logits, origin_targets)
                 accuracy_list.append(accuracy.detach().cpu().numpy())
-                timer('test')
+        timer('test')
         print(
             '[%02d] train loss:%.5f test accuracy:%5f lr:%.3f %s' % (
             epoch,

@@ -243,6 +243,24 @@ class KeepByPass(torch.nn.Module):
         return self._reader
 
 
+class StrideConv2d(torch.nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size=1, padding=1, groups=1):
+        super(StrideConv2d, self).__init__()
+        self.op1 = torch.nn.Conv2d(in_channels, out_channels // 4, kernel_size=kernel_size, stride=2, padding=padding, groups=groups)
+        self.op2 = torch.nn.Conv2d(in_channels, out_channels // 4, kernel_size=kernel_size, stride=2, padding=padding, groups=groups)
+        self.op3 = torch.nn.Conv2d(in_channels, out_channels // 4, kernel_size=kernel_size, stride=2, padding=padding, groups=groups)
+        self.op4 = torch.nn.Conv2d(in_channels, out_channels // 4, kernel_size=kernel_size, stride=2, padding=padding, groups=groups)
+
+    def __call__(self, x):
+        # y = self.op(x)
+        y = x
+        y1 = y[:, :, :, :]
+        y2 = y[:, :, 1:, :]
+        y3 = y[:, :, :, 1:]
+        y4 = y[:, :, 1:, 1:]
+        return torch.cat([self.op1(y1), self.op2(y2), self.op3(y3), self.op4(y4)], dim=1)
+
+
 class Swish(torch.nn.Module):
     def forward(self, x):
         return x * torch.sigmoid(x)
@@ -294,3 +312,26 @@ class MBConv(torch.nn.Module):
         if x.shape == out.shape:
             out = out + x
         return out
+
+
+class SEBlock(torch.nn.Module):
+    def __init__(self, in_channels, reduction=16, activation=torch.nn.ReLU(inplace=True)):
+        super(SEBlock, self).__init__()
+
+        inter_channels = max(1, in_channels // reduction)
+        self.op = torch.nn.Sequential(
+            Split(
+                torch.nn.Sequential(
+                    torch.nn.AdaptiveAvgPool2d((1, 1)),
+                    torch.nn.Conv2d(in_channels, inter_channels, kernel_size=1, bias=False),
+                    activation,
+                    torch.nn.Conv2d(inter_channels, in_channels, kernel_size=1, bias=False),
+                    torch.nn.Sigmoid()
+                ),
+                torch.nn.Identity()
+            ),
+            MergeProd()
+        )
+
+    def __call__(self, x):
+        return self.op(x)
