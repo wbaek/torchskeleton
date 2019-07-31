@@ -266,17 +266,37 @@ class Swish(torch.nn.Module):
         return x * torch.sigmoid(x)
 
 
+class SepConv(torch.nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size, stride, padding, affine=True, track_running_stats=True):
+        super(SepConv, self).__init__()
+        self.op = torch.nn.Sequential(
+            torch.nn.ReLU6(inplace=True),
+            torch.nn.Conv2d(in_channels, in_channels, kernel_size=kernel_size, stride=stride, padding=padding, groups=in_channels, bias=False),
+            torch.nn.Conv2d(in_channels, in_channels, kernel_size=1, padding=0, bias=False),
+            torch.nn.BatchNorm2d(in_channels, affine=affine, track_running_stats=track_running_stats),
+            torch.nn.ReLU6(inplace=True),
+            torch.nn.Conv2d(in_channels, in_channels, kernel_size=kernel_size, stride=1, padding=padding, groups=in_channels, bias=False),
+            torch.nn.Conv2d(in_channels, out_channels, kernel_size=1, padding=0, bias=False),
+            torch.nn.BatchNorm2d(out_channels, affine=affine, track_running_stats=track_running_stats),
+        )
+
+    def forward(self, x):
+        return self.op(x)
+
+
 class MBConv(torch.nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, stride=1, expand_ratio=1, se_ratio=0.25):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, expand_ratio=1, affine=True,
+                 track_running_stats=True, se_ratio=None, activation=torch.nn.ReLU6(inplace=True)):
         super(MBConv, self).__init__()
         inter_channels = int(in_channels * expand_ratio)
         if expand_ratio != 1:
-            expand_block = torch.nn.Sequential(
-                torch.nn.Conv2d(in_channels, inter_channels, kernel_size=1, bias=False),
-                torch.nn.BatchNorm2d(inter_channels),
-                Swish()
-            )
+            pass
         else:
+            expand_block = torch.nn.Sequential(
+                torch.nn.Conv2d(in_channels, inter_channels, kernel_size=1, stride=1, padding=0, groups=1, bias=False),
+                torch.nn.BatchNorm2d(inter_channels, affine=affine, track_running_stats=track_running_stats),
+                activation,
+            )
             expand_block = torch.nn.Identity()
 
         if se_ratio is not None and 0 < se_ratio <= 1:
@@ -286,7 +306,7 @@ class MBConv(torch.nn.Module):
                     torch.nn.Sequential(
                         torch.nn.AdaptiveAvgPool2d((1, 1)),
                         torch.nn.Conv2d(inter_channels, se_channels, kernel_size=1),
-                        Swish(),
+                        activation,
                         torch.nn.Conv2d(se_channels, inter_channels, kernel_size=1),
                         torch.nn.Sigmoid()
                     ),
@@ -299,12 +319,14 @@ class MBConv(torch.nn.Module):
 
         self.op = torch.nn.Sequential(
             expand_block,
-            torch.nn.Conv2d(inter_channels, inter_channels, kernel_size=kernel_size, groups=inter_channels, stride=stride, bias=False),
-            torch.nn.BatchNorm2d(inter_channels),
-            Swish(),
+
+            torch.nn.Conv2d(inter_channels, inter_channels, kernel_size=kernel_size, stride=stride, padding=padding, groups=inter_channels, bias=False),
+            torch.nn.BatchNorm2d(inter_channels, affine=affine, track_running_stats=track_running_stats),
+            activation,
+
             se_block,
-            torch.nn.Conv2d(inter_channels, out_channels, kernel_size=1, bias=False),
-            torch.nn.BatchNorm2d(out_channels),
+            torch.nn.Conv2d(inter_channels, out_channels, kernel_size=1, stride=1, padding=0, bias=False),
+            torch.nn.BatchNorm2d(out_channels, affine=affine, track_running_stats=track_running_stats),
         )
 
     def __call__(self, x):

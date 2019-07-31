@@ -22,8 +22,8 @@ def parse_args():
     parser = argparse.ArgumentParser(description="fast converge cifar10")
 
     parser.add_argument('--dataset-base', type=str, default='./data')
-    parser.add_argument('--batch', type=int, default=512)
-    parser.add_argument('--epoch', type=int, default=24)
+    parser.add_argument('--batch', type=int, default=500)
+    parser.add_argument('--epoch', type=int, default=25)
 
     parser.add_argument('--download', action='store_true')
 
@@ -70,10 +70,11 @@ def dataloaders(base, download, batch_size, device):
         ),
         steps=None,  # for prefetch using infinit dataloader
         batch_size=batch_size,
-        shuffle=True,
         num_workers=32,
         pin_memory=False,
-        drop_last=True
+        drop_last=True,
+        shuffle=True,
+        # sampler=skeleton.data.StratifiedSampler(train_dataset.targets)
     )
 
     test_dataloader = torch.utils.data.DataLoader(
@@ -81,21 +82,6 @@ def dataloaders(base, download, batch_size, device):
             skeleton.data.TransformDataset(
                 test_dataset,
                 transform=torchvision.transforms.Compose([
-                    # skeleton.data.transforms.Pad(4),
-                    # torchvision.transforms.ToPILImage(),
-                    # torchvision.transforms.TenCrop((32, 32)),
-                    # torchvision.transforms.Lambda(
-                    #     lambda crops: torch.stack([
-                    #         torchvision.transforms.Compose([
-                    #             torchvision.transforms.ToTensor(),
-                    #             torchvision.transforms.Normalize(
-                    #                 mean=(0.4914, 0.4822, 0.4465),
-                    #                 std=(0.2471, 0.2435, 0.2616)
-                    #             )
-                    #         ])(crop) for crop in crops
-                    #     ])
-                    # )
-                    # torchvision.transforms.CenterCrop((28, 28)),
                     torchvision.transforms.ToTensor(),
                     torchvision.transforms.Normalize(
                         mean=(0.4914, 0.4822, 0.4465),
@@ -134,54 +120,36 @@ def conv_bn(channels_in, channels_out, kernel_size=3, stride=1, padding=1, group
 
 def build_network(num_class=10):
     return torch.nn.Sequential(
-        # torch.nn.Sequential(
-        #     skeleton.nn.StrideConv2d(3, 128, kernel_size=3, padding=1),  # 16
-        #     torch.nn.BatchNorm2d(128),
-        #     torch.nn.ReLU(True),
-        # ),dd
-        conv_bn(3, 128, kernel_size=3, stride=1, padding=1),
-        conv_bn(128, 128, kernel_size=3, stride=1, padding=1),
-        torch.nn.MaxPool2d(2),
+        conv_bn(3, 64, kernel_size=3, stride=1, padding=1),  # 30
+        conv_bn(64, 128, kernel_size=5, stride=2, padding=1),  # 14
+        # torch.nn.MaxPool2d(2),
 
         skeleton.nn.Split(  # residual
             torch.nn.Identity(),
             torch.nn.Sequential(
-                conv_bn(128, 128),
-                conv_bn(128, 128),
-                # skeleton.nn.SEBlock(128),
+                conv_bn(128, 128 // 2),
+                conv_bn(128 // 2, 128),
             )
         ),
         skeleton.nn.MergeSum(),
-        # torch.nn.ReLU(inplace=True),
 
-        conv_bn(128, 256, kernel_size=3, stride=1, padding=1),
-        torch.nn.MaxPool2d(2),  # 8
-
-        # skeleton.nn.Split(  # residual
-        #     torch.nn.Identity(),
-        #     torch.nn.Sequential(
-        #         conv_bn(256, 256),
-        #         conv_bn(256, 256),
-        #     )
-        # ),
-        # skeleton.nn.MergeSum(),
-
-        conv_bn(256, 512, kernel_size=3, stride=1, padding=1),
-        torch.nn.MaxPool2d(2),  # 4
+        conv_bn(128, 256, kernel_size=3, stride=1, padding=1),  # 12
+        torch.nn.MaxPool2d(2),  # 6
 
         skeleton.nn.Split(  # residual
             torch.nn.Identity(),
             torch.nn.Sequential(
-                conv_bn(512, 512),
-                conv_bn(512, 512),
-                # skeleton.nn.SEBlock(512),
+                conv_bn(256, 256 // 2),
+                conv_bn(256 // 2, 256),
             )
         ),
         skeleton.nn.MergeSum(),
+
+        conv_bn(256, 256, kernel_size=3, stride=1, padding=1),  # 4
 
         torch.nn.AdaptiveMaxPool2d((1, 1)),  # 1x1
         skeleton.nn.Flatten(),
-        torch.nn.Linear(512, num_class, bias=False),
+        torch.nn.Linear(256, num_class, bias=False),
         skeleton.nn.Mul(0.125)
     )
 
@@ -203,21 +171,28 @@ def main():
 
     steps_per_epoch, train_loader, test_loader = dataloaders(args.dataset_base, args.download, batch_size, device)
     train_iter = iter(train_loader)
-    steps_per_epoch = int(steps_per_epoch * 1.0)
+    # steps_per_epoch = int(steps_per_epoch * 1.0)
 
     model = build_network().to(device=device)
     for module in model.modules():
         if isinstance(module, torch.nn.BatchNorm2d):
             module.weight.data.fill_(1.0)
+            module.eps = 0.0001
+            module.momentum = 0.1
         else:
             module.half()
-    # print(model)
+        if isinstance(module, torch.nn.Conv2d) and hasattr(module, 'weight'):
+            # torch.nn.init.kaiming_uniform_(module.weight, a=math.sqrt(5))  # original
+            torch.nn.init.kaiming_uniform_(module.weight, mode='fan_in', nonlinearity='linear')
+        if isinstance(module, torch.nn.Linear) and hasattr(module, 'weight'):
+            # torch.nn.init.kaiming_uniform_(module.weight, a=math.sqrt(5))  # original
+            torch.nn.init.kaiming_uniform_(module.weight, mode='fan_in', nonlinearity='linear')
 
     criterion = torch.nn.CrossEntropyLoss(reduction='none')
     metrics = skeleton.nn.Accuracy(1)
 
     lr_scheduler = skeleton.optim.get_change_scale(
-        skeleton.optim.get_piecewise([0, 5, epoch], [0.1, 0.4, 0.001]),
+        skeleton.optim.get_piecewise([0, 4, epoch], [0.025, 0.4, 0.0001]),
         1.0 / batch_size
     )
     optimizer = skeleton.optim.ScheduledOptimizer(
@@ -240,10 +215,7 @@ def main():
             logits = self.model(input)
             loss = self.criterion(logits, target)
             return logits, loss
-    # normal
     model = ModelLoss(model, criterion)
-    # cutmix
-    # model = skeleton.nn.CutMix(model, criterion, prob=0.5, beta=1.0)
 
     # warmup
     torch.cuda.synchronize()
@@ -257,10 +229,11 @@ def main():
     timer('init')
 
     # train
+    results = ['epoch\thours\ttop1Accuracy']
     for epoch in range(epoch):
-        timer('init', reset_step=True)
         model.train()
-        loss_list = []
+        train_loss_list = []
+        timer('init', reset_step=True)
         for step in range(steps_per_epoch):
             inputs, targets = next(train_iter)
             logits, loss = model(inputs, targets)
@@ -270,11 +243,12 @@ def main():
             optimizer.update()
             optimizer.step()
             model.zero_grad()
-            loss_list.append(loss.mean().detach().cpu().numpy())
+            train_loss_list.append(loss.mean().detach().cpu().numpy())
         timer('train')
 
         model.eval()
         accuracy_list = []
+        test_loss_list = []
         with torch.no_grad():
             for inputs, targets in test_loader:
                 origin_targets = targets
@@ -282,7 +256,10 @@ def main():
                 if use_tta:
                     bs, ncrops, c, h, w = inputs.size()
                     inputs = inputs.view(-1, c, h, w)
-                    targets = torch.cat([targets for _ in range(ncrops)], dim=0)
+
+                    targets = targets.view(bs, 1)
+                    targets = torch.cat([targets for _ in range(ncrops)], dim=1)
+                    targets = targets.view(bs * ncrops)
 
                 logits, loss = model(inputs, targets)
                 if use_tta:
@@ -290,15 +267,23 @@ def main():
 
                 accuracy = metrics(logits, origin_targets)
                 accuracy_list.append(accuracy.detach().cpu().numpy())
+                test_loss_list.append(loss.mean().detach().cpu().numpy())
         timer('test')
-        print(
-            '[%02d] train loss:%.5f test accuracy:%5f lr:%.3f %s' % (
+        LOGGER.info(
+            '[%02d] train loss:%.3f test loss:%.3f accuracy:%.3f lr:%.3f %s',
             epoch,
-            np.average(loss_list),
+            np.average(train_loss_list),
+            np.average(test_loss_list),
             np.average(accuracy_list),
             optimizer.get_learning_rate() * batch_size,
-            timer)
+            timer
         )
+        results.append('{epoch}\t{hour:.8f}\t{accuracy:.2f}'.format(**{
+            'epoch': epoch,
+            'hour': timer.accumulation['train'] / (60 * 60),
+            'accuracy': float(np.average(accuracy_list)) * 100.0
+        }))
+    print('\n'.join(results))
 
 
 if __name__ == '__main__':
