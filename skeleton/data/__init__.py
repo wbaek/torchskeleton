@@ -6,3 +6,4 @@ from .dataset import *
 from .dataloader import *
 from . import transforms
 from .stratified_sampler import StratifiedSampler
+from . import utils

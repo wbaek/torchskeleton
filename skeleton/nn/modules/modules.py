@@ -171,15 +171,6 @@ class Split(torch.nn.Module):
         return tuple([m(x) for m in self._modules.values()])
 
 
-class Identity2D(torch.nn.Module):
-    def __init__(self, stride=1):
-        super(Identity2D, self).__init__()
-        self.stride = stride
-
-    def forward(self, x):
-        return x if self.stride == 1 else x[:, :, ::self.stride, ::self.stride]
-
-
 class DropPath(torch.nn.Module):
     def __init__(self, drop_prob=0.0):
         super(DropPath, self).__init__()
@@ -284,19 +275,42 @@ class SepConv(torch.nn.Module):
         return self.op(x)
 
 
+class Identity2d(torch.nn.Module):
+    def __init__(self, stride=1):
+        super(Identity2d, self).__init__()
+        self.stride = stride
+
+    def forward(self, x):
+        return x if self.stride == 1 else x[:, :, ::self.stride, ::self.stride]
+
+
+class Skip2d(torch.nn.Module):
+    def __init__(self, in_channels, out_channels, stride=1, affine=True, track_running_stats=True):
+        super(Skip2d, self).__init__()
+        if in_channels != out_channels:
+            self.op = torch.nn.Sequential(
+                torch.nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride, padding=0, groups=1, bias=False),
+                torch.nn.BatchNorm2d(out_channels, affine=affine, track_running_stats=track_running_stats),
+            )
+        else:
+            self.op = Identity2d(stride=stride)
+
+    def __call__(self, x):
+        return self.op(x)
+
+
 class MBConv(torch.nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, expand_ratio=1, affine=True,
                  track_running_stats=True, se_ratio=None, activation=torch.nn.ReLU6(inplace=True)):
         super(MBConv, self).__init__()
         inter_channels = int(in_channels * expand_ratio)
         if expand_ratio != 1:
-            pass
-        else:
             expand_block = torch.nn.Sequential(
                 torch.nn.Conv2d(in_channels, inter_channels, kernel_size=1, stride=1, padding=0, groups=1, bias=False),
                 torch.nn.BatchNorm2d(inter_channels, affine=affine, track_running_stats=track_running_stats),
                 activation,
             )
+        else:
             expand_block = torch.nn.Identity()
 
         if se_ratio is not None and 0 < se_ratio <= 1:
