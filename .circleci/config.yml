@@ -27,12 +27,10 @@ jobs:
             pip install --upgrade setuptools
             pip install pytest pytest-cov pytest-datafiles
             pip install torch torchvision
-            pip install git+https://github.com/wbaek/theconf.git
             python -c "import torchvision; torchvision.datasets.CIFAR10('./data', train=True, download=True)"
             python -c "import torchvision; torchvision.datasets.CIFAR10('./data', train=False, download=True)"
             python -c "import torchvision; torchvision.datasets.CIFAR100('./data', train=True, download=True)"
             python -c "import torchvision; torchvision.datasets.CIFAR100('./data', train=False, download=True)"
-
 
       - save_cache:
           paths:
@@ -52,7 +50,7 @@ jobs:
 
       - store_artifacts:
           path: ./htmlcov
-          destination: test-coverage-python3
+          destination: test-coverage-python3-pip
 
   build_python3:
     docker:
@@ -156,4 +154,4 @@ workflows:
     jobs:
       - test_pip_install
       - build_python3
-      - build_python2
+#      - build_python2

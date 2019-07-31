@@ -30,23 +30,14 @@ setup(
     zip_safe=False,
     include_package_data=True,
     setup_requires=[],
-    data_files=[
-        ('', [
-            'skeleton/datasets/datas/ILSVRC/classification/imagenet1000_classid_to_text_synsetid.json',
-            'skeleton/datasets/datas/ILSVRC/classification/imagenet_2012_validation_synset_labels.txt',
-        ])
-    ],
+    data_files=[],
     install_requires=[
         'torch',
         'torchvision',
-        'skorch',
-        'tensorboardX',
         'tqdm',
-        'treelib',
-        'opencv-python',
+        'treelib'
     ],
     dependency_links=[
-        'https://github.com/wbaek/theconf/tarball/master',
     ],
     tests_require=[],
 )

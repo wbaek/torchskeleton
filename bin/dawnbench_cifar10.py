@@ -14,7 +14,6 @@ import skeleton
 
 
 LOGGER = logging.getLogger(__name__)
-torch.backends.cudnn.benchmark = True
 
 
 def parse_args():
@@ -26,6 +25,7 @@ def parse_args():
     parser.add_argument('--epoch', type=int, default=25)
 
     parser.add_argument('--download', action='store_true')
+    parser.add_argument('--seed', type=lambda x: int(x, 0), default=None)
 
     parser.add_argument('--log-filename', type=str, default='')
     parser.add_argument('--debug', action='store_true')
@@ -50,7 +50,7 @@ def dataloaders(base, download, batch_size, device):
                 skeleton.data.TransformDataset(
                     train_dataset,
                     transform=torchvision.transforms.Compose([
-                        skeleton.data.transforms.Pad(4),
+                        skeleton.data.transforms.Pad(2),
                         torchvision.transforms.ToTensor(),
                         torchvision.transforms.Normalize(
                             mean=(0.4914, 0.4822, 0.4465),
@@ -62,7 +62,7 @@ def dataloaders(base, download, batch_size, device):
                 num_workers=16
             ),
             transform=torchvision.transforms.Compose([
-                skeleton.data.transforms.TensorRandomCrop(32, 32),
+                skeleton.data.transforms.TensorRandomCrop(30, 30),
                 skeleton.data.transforms.TensorRandomHorizontalFlip(),
                 skeleton.data.transforms.Cutout(8, 8)
             ]),
@@ -82,6 +82,7 @@ def dataloaders(base, download, batch_size, device):
             skeleton.data.TransformDataset(
                 test_dataset,
                 transform=torchvision.transforms.Compose([
+                    torchvision.transforms.CenterCrop((30, 30)),
                     torchvision.transforms.ToTensor(),
                     torchvision.transforms.Normalize(
                         mean=(0.4914, 0.4822, 0.4465),
@@ -109,48 +110,52 @@ def dataloaders(base, download, batch_size, device):
     return int(len(train_dataset) // batch_size), train_dataloader, test_dataloader
 
 
-def conv_bn(channels_in, channels_out, kernel_size=3, stride=1, padding=1, groups=1, activation=True):
-    return torch.nn.Sequential(
-        torch.nn.Conv2d(channels_in, channels_out,
-                        kernel_size=kernel_size, stride=stride, padding=padding, groups=groups, bias=False),
-        torch.nn.BatchNorm2d(channels_out),
-        torch.nn.ReLU(True) if activation else torch.nn.Identity()
-    )
+def conv_bn(channels_in, channels_out, kernel_size=3, stride=1, padding=1, groups=1, bn=True, activation=True):
+    op = [
+            torch.nn.Conv2d(channels_in, channels_out,
+                            kernel_size=kernel_size, stride=stride, padding=padding, groups=groups, bias=False),
+    ]
+    if bn:
+        op.append(torch.nn.BatchNorm2d(channels_out))
+    if activation:
+        op.append(torch.nn.ReLU(inplace=True))
+    return torch.nn.Sequential(*op)
+
+
+class Residual(torch.nn.Module):
+    def __init__(self, module):
+        super(Residual, self).__init__()
+        self.module = module
+
+    def __call__(self, x):
+        return x + self.module(x)
 
 
 def build_network(num_class=10):
     return torch.nn.Sequential(
-        conv_bn(3, 64, kernel_size=3, stride=1, padding=1),  # 30
-        conv_bn(64, 128, kernel_size=5, stride=2, padding=1),  # 14
+        conv_bn(3, 64, kernel_size=3, stride=1, padding=1),
+        conv_bn(64, 128, kernel_size=5, stride=2, padding=2),
         # torch.nn.MaxPool2d(2),
 
-        skeleton.nn.Split(  # residual
-            torch.nn.Identity(),
-            torch.nn.Sequential(
-                conv_bn(128, 128 // 2),
-                conv_bn(128 // 2, 128),
-            )
-        ),
-        skeleton.nn.MergeSum(),
+        Residual(torch.nn.Sequential(
+            conv_bn(128, 128),
+            conv_bn(128, 128),
+        )),
 
-        conv_bn(128, 256, kernel_size=3, stride=1, padding=1),  # 12
-        torch.nn.MaxPool2d(2),  # 6
+        conv_bn(128, 256, kernel_size=3, stride=1, padding=1),
+        torch.nn.MaxPool2d(2),
 
-        skeleton.nn.Split(  # residual
-            torch.nn.Identity(),
-            torch.nn.Sequential(
-                conv_bn(256, 256 // 2),
-                conv_bn(256 // 2, 256),
-            )
-        ),
-        skeleton.nn.MergeSum(),
+        Residual(torch.nn.Sequential(
+            conv_bn(256, 256),
+            conv_bn(256, 256),
+        )),
 
-        conv_bn(256, 256, kernel_size=3, stride=1, padding=1),  # 4
+        conv_bn(256, 128, kernel_size=3, stride=1, padding=0),
 
-        torch.nn.AdaptiveMaxPool2d((1, 1)),  # 1x1
+        torch.nn.AdaptiveMaxPool2d((1, 1)),
         skeleton.nn.Flatten(),
-        torch.nn.Linear(256, num_class, bias=False),
-        skeleton.nn.Mul(0.125)
+        torch.nn.Linear(128, num_class, bias=False),
+        skeleton.nn.Mul(0.2)
     )
 
 
@@ -165,6 +170,10 @@ def main():
     else:
         logging.basicConfig(level=level, format=log_format, filename=args.log_filename)
 
+    torch.backends.cudnn.benchmark = True
+    if args.seed is not None:
+        skeleton.utils.set_random_seed_all(args.seed, deterministic=False)
+
     epoch = args.epoch
     batch_size = args.batch
     device = torch.device('cuda', 0)
@@ -176,23 +185,26 @@ def main():
     model = build_network().to(device=device)
     for module in model.modules():
         if isinstance(module, torch.nn.BatchNorm2d):
-            module.weight.data.fill_(1.0)
-            module.eps = 0.0001
+            if hasattr(module, 'weight') and module.weight is not None:
+                module.weight.data.fill_(1.0)
+            module.eps = 0.00001
             module.momentum = 0.1
         else:
             module.half()
         if isinstance(module, torch.nn.Conv2d) and hasattr(module, 'weight'):
             # torch.nn.init.kaiming_uniform_(module.weight, a=math.sqrt(5))  # original
             torch.nn.init.kaiming_uniform_(module.weight, mode='fan_in', nonlinearity='linear')
+            # torch.nn.init.xavier_uniform_(module.weight, gain=torch.nn.init.calculate_gain('linear'))
         if isinstance(module, torch.nn.Linear) and hasattr(module, 'weight'):
             # torch.nn.init.kaiming_uniform_(module.weight, a=math.sqrt(5))  # original
             torch.nn.init.kaiming_uniform_(module.weight, mode='fan_in', nonlinearity='linear')
+            # torch.nn.init.xavier_uniform_(module.weight, gain=1.)
 
-    criterion = torch.nn.CrossEntropyLoss(reduction='none')
+    criterion = torch.nn.CrossEntropyLoss(reduction='sum')
     metrics = skeleton.nn.Accuracy(1)
 
     lr_scheduler = skeleton.optim.get_change_scale(
-        skeleton.optim.get_piecewise([0, 4, epoch], [0.025, 0.4, 0.0001]),
+        skeleton.optim.get_piecewise([0, 4, epoch], [0.025, 0.4, 0.001]),
         1.0 / batch_size
     )
     optimizer = skeleton.optim.ScheduledOptimizer(
@@ -211,9 +223,9 @@ def main():
             self.model = model
             self.criterion = criterion
 
-        def forward(self, input, target):
-            logits = self.model(input)
-            loss = self.criterion(logits, target)
+        def forward(self, inputs, targets):
+            logits = self.model(inputs)
+            loss = self.criterion(logits, targets)
             return logits, loss
     model = ModelLoss(model, criterion)
 
@@ -223,7 +235,7 @@ def main():
     for _ in range(2):
         inputs, targets = next(train_iter)
         logits, loss = model(inputs, targets)
-        loss.sum().backward()
+        loss.backward()
         model.zero_grad()
     torch.cuda.synchronize()
     timer('init')
@@ -243,7 +255,7 @@ def main():
             optimizer.update()
             optimizer.step()
             model.zero_grad()
-            train_loss_list.append(loss.mean().detach().cpu().numpy())
+            train_loss_list.append(loss.detach().cpu().numpy() / batch_size)
         timer('train')
 
         model.eval()
@@ -267,7 +279,7 @@ def main():
 
                 accuracy = metrics(logits, origin_targets)
                 accuracy_list.append(accuracy.detach().cpu().numpy())
-                test_loss_list.append(loss.mean().detach().cpu().numpy())
+                test_loss_list.append(loss.detach().cpu().numpy() / batch_size)
         timer('test')
         LOGGER.info(
             '[%02d] train loss:%.3f test loss:%.3f accuracy:%.3f lr:%.3f %s',
@@ -287,4 +299,7 @@ def main():
 
 
 if __name__ == '__main__':
+    """
+    > python bin/dawnbench_cifar10.py --seed 0xC0FFEE --download > log_dawnbench_cifar10.tsv
+    """
     main()

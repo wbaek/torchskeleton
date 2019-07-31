@@ -75,8 +75,8 @@ class ImageWriter:
         os.makedirs(self.root, exist_ok=True)
 
     def __call__(self, image):
-        hex = hashlib.md5(image.tobytes()).hexdigest()
-        filename = os.path.join(self.root,  hex + '.jpg')
-        with open(filename, 'wb') as f:
+        filename = hashlib.md5(image.tobytes()).hexdigest()
+        filepath = os.path.join(self.root,  filename + '.jpg')
+        with open(filepath, 'wb') as f:
             image.save(f, format='jpeg')
         return image

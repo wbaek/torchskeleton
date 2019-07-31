@@ -5,7 +5,8 @@ import logging
 import torch
 
 
-'''
+LOGGER = logging.getLogger(__name__)
+"""
 # preforked/prefech dataloader
 num_steps = len(dataset) // batch_size
 dataloader = skeleton.data.FixedSizeDataLoader(dataset, steps=None, batch_size=batch_size)
@@ -14,8 +15,7 @@ dataiter = iter(dataloader)
 
 for step in range(num_steps):
     data =next(dataiter)
-'''
-LOGGER = logging.getLogger(__name__)
+"""
 
 
 class FixedSizeDataLoader:

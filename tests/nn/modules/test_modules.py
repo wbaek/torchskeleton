@@ -1,7 +1,12 @@
 # -*- coding: utf-8 -*-
+import os
+import sys
+
 import torch
 import numpy as np
 
+base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.append(base_dir)
 from skeleton.nn.modules.modules import Mul, Flatten, Concat, MergeSum, Split, DelayedPass
 
 

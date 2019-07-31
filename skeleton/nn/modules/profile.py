@@ -63,11 +63,11 @@ class Profiler:
 
 
 # base code from https://github.com/JaminFong/DenseNAS/blob/master/tools/multadds_count.py
-def count_conv_flops(conv_module, input, output):
-    input = input[0]
+def count_conv_flops(conv_module, inputs, outputs):
+    inputs = inputs[0]
 
-    batch_size = input.shape[0]
-    output_height, output_width = output.shape[2:]
+    batch_size = inputs.shape[0]
+    output_height, output_width = outputs.shape[2:]
 
     kernel_height, kernel_width = conv_module.kernel_size
     in_channels = conv_module.in_channels
@@ -92,9 +92,9 @@ def count_conv_flops(conv_module, input, output):
     return int(overall_flops)
 
 
-def count_linear_flops(linear_module, input, output):
-    input = input[0]
-    batch_size = input.shape[0]
+def count_linear_flops(linear_module, inputs, outputs):
+    inputs = inputs[0]
+    batch_size = inputs.shape[0]
     overall_flops = linear_module.in_features * linear_module.out_features * batch_size
 
     bias_flops = 0

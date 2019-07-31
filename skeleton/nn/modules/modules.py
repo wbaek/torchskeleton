@@ -69,8 +69,8 @@ class Cutout(torch.nn.Module):
         super(Cutout, self).__init__()
         self.ratio = ratio
 
-    def forward(self, input):
-        batch, channel, height, width = input.shape
+    def forward(self, tensor):
+        batch, channel, height, width = tensor.shape
         w = int(width * self.ratio)
         h = int(height * self.ratio)
 
@@ -83,12 +83,12 @@ class Cutout(torch.nn.Module):
             y1s = np.clip(y - h // 2, 0, height)
             y2s = np.clip(y + h // 2, 0, height)
 
-            mask = torch.ones_like(input)
+            mask = torch.ones_like(tensor)
             for idx, (x1, x2, y1, y2) in enumerate(zip(x1s, x2s, y1s, y2s)):
                 mask[idx, :, y1:y2, x1:x2] = 0.
 
-            input = input * mask
-        return input
+            tensor = tensor * mask
+        return tensor
 
 
 class Mul(torch.nn.Module):
