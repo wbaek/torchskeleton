@@ -34,6 +34,7 @@ setup(
     install_requires=[
         'torch',
         'torchvision',
+        'sklearn',
         'tqdm',
         'treelib'
     ],
