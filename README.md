@@ -16,7 +16,17 @@
 
 ### [DAWNBench Image Classification on CIFAR10][]
 
-In my test, 30 out of 50 runs **reached 94% test set accuracy.** Runtime for 25 epochs is **roughly 69sec** using [Kakao Brain][] [BrainCloud][] V1.XLARGE Type (V100 1GPU, 14CPU, 122GB).
+#### multi gpu and single node
+
+In my test, 33 out of 50 runs **reached 94% test set accuracy.** Runtime for 35 epochs is **roughly 38sec** using [Kakao Brain][] [BrainCloud][] V4.XLARGE Type (V100 4GPU, 56CPU, 488GB).
+
+| | <sub>trials</sub> | <sub>\> 94% count</sub> | <sub>average</sub> | <sub>median</sub> | <sub>min</sub> | <sub>max</sub> |
+|:---:|---:|---:|---:|---:|---:|---:|
+| **metric** | 50 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;33 | 94.074 | 94.080 | 93.780 | 94.390 |
+
+#### single gpu and node
+
+In my test, 30 out of 50 runs **reached 94% test set accuracy.** Runtime for 25 epochs is **roughly 68sec** using [Kakao Brain][] [BrainCloud][] V1.XLARGE Type (V100 1GPU, 56CPU, 488GB).
 
 | | <sub>trials</sub> | <sub>\> 94% count</sub> | <sub>average</sub> | <sub>median</sub> | <sub>min</sub> | <sub>max</sub> |
 |:---:|---:|---:|---:|---:|---:|---:|
@@ -40,6 +50,7 @@ $ pip install -r requirements.txt
 * run dawnbench image classification on CIFAR10
 ```bash
 $ python bin/dawnbench/cifar10.py --seed 0xC0FFEE --download > log_dawnbench_cifar10.tsv
+$ python bin/dawnbench/cifar10_multigpu.py --num-gpus 4 --seed 0x00CAFE --download > log_dawnbench_cifar10_multigpu.tsv
 ```
 
 
