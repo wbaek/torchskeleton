@@ -296,10 +296,11 @@ def main():
             'accuracy': float(np.average(accuracy_list)) * 100.0
         }))
     print('\n'.join(results))
+    torch.save(model.state_dict(), 'assets/kakaobrain_custom-resnet9_single_cifar10.pth')
 
 
 if __name__ == '__main__':
     """
-    > python bin/dawnbench_cifar10.py --seed 0xC0FFEE --download > log_dawnbench_cifar10.tsv
+    > python bin/dawnbench/cifar10.py --seed 0xC0FFEE --download > log_dawnbench_cifar10.tsv
     """
     main()

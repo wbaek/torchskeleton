@@ -305,6 +305,6 @@ def main():
 
 if __name__ == '__main__':
     """
-    > python bin/dawnbench_cifar10.py --seed 0xC0FFEE --download > log_dawnbench_cifar10.tsv
+    > python bin/dawnbench/cifar10_multigpu.py --seed 0x00CAFE --download > log_dawnbench_cifar10.tsv
     """
     main()
