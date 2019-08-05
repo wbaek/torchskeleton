@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
+import math
 import logging
 
 import numpy as np
@@ -22,7 +23,9 @@ def parse_args():
 
     parser.add_argument('--dataset-base', type=str, default='./data')
     parser.add_argument('--batch', type=int, default=500)
-    parser.add_argument('--epoch', type=int, default=25)
+    parser.add_argument('--epoch', type=int, default=35)
+
+    parser.add_argument('--num-gpus', type=int, default=torch.cuda.device_count())
 
     parser.add_argument('--download', action='store_true')
     parser.add_argument('--seed', type=lambda x: int(x, 0), default=None)
@@ -150,11 +153,11 @@ def build_network(num_class=10):
             conv_bn(256, 256),
         )),
 
-        conv_bn(256, 128, kernel_size=3, stride=1, padding=0),
+        conv_bn(256, 256, kernel_size=3, stride=1, padding=0),
 
         torch.nn.AdaptiveMaxPool2d((1, 1)),
         skeleton.nn.Flatten(),
-        torch.nn.Linear(128, num_class, bias=False),
+        torch.nn.Linear(256, num_class, bias=False),
         skeleton.nn.Mul(0.2)
     )
 
@@ -175,7 +178,7 @@ def main():
         skeleton.utils.set_random_seed_all(args.seed, deterministic=False)
 
     epoch = args.epoch
-    batch_size = args.batch
+    batch_size = args.batch * args.num_gpus
     device = torch.device('cuda', 0)
 
     steps_per_epoch, train_loader, test_loader = dataloaders(args.dataset_base, args.download, batch_size, device)
@@ -205,7 +208,7 @@ def main():
 
     lr_scheduler = skeleton.optim.get_change_scale(
         skeleton.optim.get_piecewise([0, 4, epoch], [0.025, 0.4, 0.001]),
-        1.0 / batch_size
+        1.0 / batch_size * args.num_gpus
     )
     optimizer = skeleton.optim.ScheduledOptimizer(
         [p for p in model.parameters() if p.requires_grad],
@@ -214,7 +217,7 @@ def main():
         lr=lr_scheduler,
         momentum=0.9,
         weight_decay=5e-4 * batch_size,
-        nesterov=True
+        nesterov=True,
     )
 
     class ModelLoss(torch.nn.Module):
@@ -228,6 +231,8 @@ def main():
             loss = self.criterion(logits, targets)
             return logits, loss
     model = ModelLoss(model, criterion)
+    # model = skeleton.nn.CutMix(model, criterion, prob=0.5, beta=1.0)
+    model = torch.nn.DataParallel(model, device_ids=list(range(args.num_gpus)))
 
     # warmup
     torch.cuda.synchronize()
@@ -235,7 +240,7 @@ def main():
     for _ in range(2):
         inputs, targets = next(train_iter)
         logits, loss = model(inputs, targets)
-        loss.backward()
+        loss.sum().backward()
         model.zero_grad()
     torch.cuda.synchronize()
     timer('init')
