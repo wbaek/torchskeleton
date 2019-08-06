@@ -1,7 +1,7 @@
 # TorchSkeleton
 [![KakaoBrain](https://img.shields.io/badge/kakao-brain-ffcd00.svg)](http://kakaobrain.com/)
 [![pytorch](https://img.shields.io/badge/pytorch-1.1.0-%23ee4c2c.svg)](https://pytorch.org/)
-[![dawnbench](https://img.shields.io/badge/dawn-bench-600E0E.svg)](https://dawn.cs.stanford.edu/benchmark/#cifar10-train-time)
+[![dawnbench](https://img.shields.io/badge/DAWN-Bench-600E0E.svg)](https://dawn.cs.stanford.edu/benchmark/#cifar10-train-time)
 [![CodeFactor](https://www.codefactor.io/repository/github/wbaek/torchskeleton/badge)](https://www.codefactor.io/repository/github/wbaek/torchskeleton)
 [![CircleCI](https://circleci.com/gh/wbaek/torchskeleton.svg?style=svg)](https://circleci.com/gh/wbaek/torchskeleton)
 
@@ -33,7 +33,7 @@ In my test, 30 out of 50 runs **reached 94% test set accuracy.** Runtime for 25 
 |:---:|---:|---:|---:|---:|---:|---:|
 | **metric** | 50 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;30 | 94.057 | 94.045 | 93.700 | 94.330 |
 
-### inference latency
+#### inference latency
 
 In my test, runs **reached 94% test set accuracy.** Runtime latency per sample is **roughly 0.9 milliseconds** using [Kakao Brain][] [BrainCloud][] V1.XLARGE Type (V100 1GPU, 56CPU, 488GB).
 ```
