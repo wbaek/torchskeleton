@@ -50,7 +50,7 @@ def dataloaders(base, download, device):
                     ),
                     torchvision.transforms.Lambda(
                         lambda tensor: torch.stack([
-                            tensor, torch.flip(tensor, dims=[-1])
+                            tensor, torch.flip(tensor, dims=[-1]),
                         ], dim=0)
                     )
                 ]),
@@ -69,7 +69,7 @@ def dataloaders(base, download, device):
     )
 
     # test_dataloader = skeleton.data.PrefetchDataLoader(test_dataloader, device=device, half=True)
-    return len(test_dataset), test_dataloader
+    return len(test_dataset), test_dataloader, 2
 
 
 def conv_bn(channels_in, channels_out, kernel_size=3, stride=1, padding=1, groups=1, bn=True, activation=True):
@@ -135,7 +135,7 @@ def main():
     torch.backends.cudnn.benchmark = True
     device = torch.device('cuda', 0)
 
-    num_items, test_loader = dataloaders(args.dataset_base, args.download, device)
+    num_items, test_loader, batch_size = dataloaders(args.dataset_base, args.download, device)
     test_iter = iter(test_loader)
 
     model = build_network().to(device=device).eval()
@@ -144,32 +144,33 @@ def main():
             pass
         else:
             module.half()
-    model.load_state_dict({key[6:]:value for key, value in torch.load(args.model).items()})
+    model.load_state_dict({key[6:]: value for key, value in torch.load(args.model).items()})
+
+    # JIT compile
+    example = torch.zeros(batch_size, 3, 30, 30, dtype=torch.float16).to(device=device)
+    jit_model = torch.jit.trace(model, example)
 
     # warmup
     torch.cuda.synchronize()
-    example = torch.zeros(2, 3, 30, 30, dtype=torch.float16).to(device=device)
-    jit_model = torch.jit.trace(model, example)
     for _ in range(2):
-        example = torch.zeros(2, 3, 30, 30, dtype=torch.float16).to(device=device)
+        example = torch.zeros(batch_size, 3, 30, 30, dtype=torch.float16).to(device=device)
         jit_model(example)
     for _ in range(num_items):
-        inputs, targets = next(test_iter)
+        _ = next(test_iter)
     torch.cuda.synchronize()
-
-    predictions = []
     timer('init')
 
-    # train
+    # prediction
+    predictions = []
     with torch.no_grad():
         for _ in range(num_items):
-            inputs, targets = next(test_iter)
-            logits = jit_model(inputs.view(2, 3, 30, 30))
+            inputs, _ = next(test_iter)
+            logits = jit_model(inputs.view(batch_size, 3, 30, 30))
             predictions.append(logits.detach())
     torch.cuda.synchronize()
     timer('inference')
 
-    predictions = torch.cat([p.view(1, 2, -1).mean(1) for p in predictions], dim=0)
+    predictions = torch.cat([p.view(1, batch_size, -1).mean(1) for p in predictions], dim=0)
     targets = torch.cat([next(test_iter)[1] for _ in range(num_items)], dim=0)
     accuracy = skeleton.nn.Accuracy(1)(predictions, targets)
 

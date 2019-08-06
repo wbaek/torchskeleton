@@ -17,7 +17,7 @@
 
 ### [DAWNBench Image Classification on CIFAR10][]
 
-#### multi gpu
+#### training multi gpu
 
 In my test, 33 out of 50 runs **reached 94% test set accuracy.** Runtime for 35 epochs is **roughly 38sec** using [Kakao Brain][] [BrainCloud][] V4.XLARGE Type (V100 4GPU, 56CPU, 488GB).
 
@@ -25,7 +25,7 @@ In my test, 33 out of 50 runs **reached 94% test set accuracy.** Runtime for 35 
 |:---:|---:|---:|---:|---:|---:|---:|
 | **metric** | 50 | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;33 | 94.074 | 94.080 | 93.780 | 94.390 |
 
-#### single gpu
+#### training single gpu
 
 In my test, 30 out of 50 runs **reached 94% test set accuracy.** Runtime for 25 epochs is **roughly 68sec** using [Kakao Brain][] [BrainCloud][] V1.XLARGE Type (V100 1GPU, 56CPU, 488GB).
 
@@ -35,7 +35,7 @@ In my test, 30 out of 50 runs **reached 94% test set accuracy.** Runtime for 25 
 
 ### inference latency
 
-In my test, runs **reached 94% test set accuracy.** Runtime latency per sample is **roughly 86 milliseconds** using [Kakao Brain][] [BrainCloud][] V1.XLARGE Type (V100 1GPU, 56CPU, 488GB).
+In my test, runs **reached 94% test set accuracy.** Runtime latency per sample is **roughly 0.9 milliseconds** using [Kakao Brain][] [BrainCloud][] V1.XLARGE Type (V100 1GPU, 56CPU, 488GB).
 ```
 accuracy:94.20%, 0.85933us per sample
 ```
@@ -60,7 +60,7 @@ $ # train
 $ python bin/dawnbench/cifar10.py --seed 0xC0FFEE --download > log_dawnbench_cifar10.tsv
 $ python bin/dawnbench/cifar10_multigpu.py --num-gpus 4 --seed 0x00CAFE --download > log_dawnbench_cifar10_multigpu.tsv
 $ # infer
-$ python bin/dawnbench/cifar10_infer.py --model assets/kakaobrain_custom-resnet9_single_cifar10.pth
+$ python bin/dawnbench/cifar10_infer.py --model assets/kakaobrain_custom-resnet9_single_cifar10.pth  --download
 ```
 
 
