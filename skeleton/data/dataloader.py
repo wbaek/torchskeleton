@@ -3,6 +3,7 @@ from __future__ import absolute_import
 import logging
 
 import torch
+from torch.utils.data import RandomSampler, SequentialSampler
 
 
 LOGGER = logging.getLogger(__name__)
@@ -65,12 +66,13 @@ class InfiniteSampler(torch.utils.data.sampler.Sampler):
 
 
 class PrefetchDataLoader:
-    def __init__(self, dataloader, device, half=False):
+    def __init__(self, dataloader, device, half=False, contiguous=False):
         self.loader = dataloader
         self.iter = None
         self.device = device
         self.dtype = torch.float16 if half else torch.float32
-        self.stream = torch.cuda.Stream()
+        self.contiguous = contiguous
+        self.stream = torch.cuda.Stream(device=device)
         self.next_data = None
 
     def __len__(self):
@@ -85,8 +87,14 @@ class PrefetchDataLoader:
 
         with torch.cuda.stream(self.stream):
             if isinstance(self.next_data, torch.Tensor):
+                if self.contiguous:
+                    self.next_data = self.next_data.contiguous()
                 self.next_data = self.next_data.to(dtype=self.dtype, device=self.device, non_blocking=True)
             elif isinstance(self.next_data, (list, tuple)):
+                if self.contiguous:
+                    self.next_data = [
+                        t.contiguous() for t in self.next_data
+                    ]
                 self.next_data = [
                     t.to(dtype=self.dtype, device=self.device, non_blocking=True) if t.is_floating_point() else t.to(device=self.device, non_blocking=True) for t in self.next_data
                 ]
@@ -99,3 +107,44 @@ class PrefetchDataLoader:
             data = self.next_data
             self.async_prefech()
             yield data
+
+
+class SampleParallelDataLoader:
+    def __init__(self, dataset, batch_size=1, shuffle=False, num_workers=0, pin_memory=False, drop_last=False, concats=None, infinite=False):
+        self.dataset = dataset
+        self.batch_size = batch_size
+        self.drop_last = drop_last
+        self.concats = concats
+
+        if infinite:
+            self.sampler = InfiniteSampler(dataset, shuffle)
+        elif shuffle:
+            self.sampler = RandomSampler(dataset)
+        else:
+            self.sampler = SequentialSampler(dataset)
+
+        self.loader = torch.utils.data.DataLoader(
+            dataset,
+            batch_size=1,
+            sampler=self.sampler,
+            num_workers=num_workers,
+            pin_memory=pin_memory
+        )
+
+    def __len__(self):
+        if self.drop_last:
+            return len(self.sampler) // self.batch_size
+        return (len(self.sampler) + self.batch_size - 1) // self.batch_size
+
+    def __iter__(self):
+        batch = []
+        for datas in self.loader:
+            batch.append(datas)
+            if len(batch) == self.batch_size:
+                concats = self.concats if self.concats is not None else [True for _ in range(len(batch[0]))]
+                yield [torch.cat(inner[:-1], dim=0) if inner[-1] else inner[:-1] for inner in zip(*batch, concats)]
+                batch = []
+
+        if batch and not self.drop_last:
+            concats = self.concats if self.concats is not None else [True for _ in range(len(batch[0]))]
+            yield [torch.cat(inner[:-1], dim=0) if inner[-1] else inner[:-1] for inner in zip(*batch, concats)]

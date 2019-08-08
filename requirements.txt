@@ -1,4 +1,2 @@
-sklearn
 treelib>=1.5.3
 tqdm>=4.28.0
-

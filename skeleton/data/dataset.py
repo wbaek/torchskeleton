@@ -31,7 +31,7 @@ class TransformDataset(Dataset):
         return len(self.dataset)
 
 
-def prefetch_dataset(dataset, num_workers=4, batch_size=32, device=None, half=False):
+def prefetch_dataset(dataset, num_workers=4, batch_size=32, device=None, half=False, contiguous=False):
     if isinstance(dataset, list) and isinstance(dataset[0], torch.Tensor):
         tensors = dataset
     else:
@@ -47,6 +47,8 @@ def prefetch_dataset(dataset, num_workers=4, batch_size=32, device=None, half=Fa
     if device is not None:
         tensors = [t.to(device=device) for t in tensors]
     if half:
-        tensors = [t.half() if  t.is_floating_point() else t for t in tensors]
+        tensors = [t.half() if t.is_floating_point() else t for t in tensors]
+    if contiguous:
+        tensors = [t.contiguous() for t in tensors]
 
     return torch.utils.data.TensorDataset(*tensors)

@@ -130,7 +130,7 @@ class Residual(torch.nn.Module):
         super(Residual, self).__init__()
         self.module = module
 
-    def __call__(self, x):
+    def forward(self, x):
         return x + self.module(x)
 
 
@@ -304,7 +304,5 @@ def main():
 
 
 if __name__ == '__main__':
-    """
-    > python bin/dawnbench/cifar10_multigpu.py --seed 0x00CAFE --download > log_dawnbench_cifar10.tsv
-    """
+    # > python bin/dawnbench/cifar10_multigpu.py --seed 0x00CAFE --download > log_dawnbench_cifar10.tsv
     main()

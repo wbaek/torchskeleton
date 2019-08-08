@@ -63,6 +63,14 @@ $ # infer
 $ python bin/dawnbench/cifar10_infer.py --model assets/kakaobrain_custom-resnet9_single_cifar10.pth  --download
 ```
 
+* prepare resized imagenet
+```
+$ # original : ./data/imagenet
+$ # resized : ./data/imagenet-sz/160
+$ python scripts/resize.py
+```
+
+
 
 ## Authors and Licensing
 This project is developed by [Woonhyuk Baek][] at [Kakao Brain][]. It is distributed under [Apache License2.0](LICENSE).

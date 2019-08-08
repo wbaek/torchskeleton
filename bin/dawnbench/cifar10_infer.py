@@ -89,14 +89,14 @@ class Residual(torch.nn.Module):
         super(Residual, self).__init__()
         self.module = module
 
-    def __call__(self, x):
+    def forward(self, x):
         return x + self.module(x)
 
 
 def build_network(num_class=10):
     return torch.nn.Sequential(
-        conv_bn(3, 64, kernel_size=3, stride=1, padding=1),
-        conv_bn(64, 128, kernel_size=5, stride=2, padding=2),
+        conv_bn(3, 64, kernel_size=3, stride=1, padding=1),  # 30
+        conv_bn(64, 128, kernel_size=5, stride=2, padding=2),  # 15
         # torch.nn.MaxPool2d(2),
 
         Residual(torch.nn.Sequential(
@@ -104,15 +104,15 @@ def build_network(num_class=10):
             conv_bn(128, 128),
         )),
 
-        conv_bn(128, 256, kernel_size=3, stride=1, padding=1),
-        torch.nn.MaxPool2d(2),
+        conv_bn(128, 256, kernel_size=3, stride=1, padding=1),  # 15
+        torch.nn.MaxPool2d(2),  # 8
 
         Residual(torch.nn.Sequential(
             conv_bn(256, 256),
             conv_bn(256, 256),
         )),
 
-        conv_bn(256, 128, kernel_size=3, stride=1, padding=0),
+        conv_bn(256, 128, kernel_size=3, stride=1, padding=0),  # 6
 
         torch.nn.AdaptiveMaxPool2d((1, 1)),
         skeleton.nn.Flatten(),
@@ -138,20 +138,21 @@ def main():
     num_items, test_loader, batch_size = dataloaders(args.dataset_base, args.download, device)
     test_iter = iter(test_loader)
 
-    model = build_network().to(device=device).eval()
+    model = build_network().to(device=device)
     for module in model.modules():
         if isinstance(module, torch.nn.BatchNorm2d):
             pass
         else:
             module.half()
     model.load_state_dict({key[6:]: value for key, value in torch.load(args.model).items()})
+    model = model.eval()
 
     # JIT compile
-    example = torch.zeros(batch_size, 3, 30, 30, dtype=torch.float16).to(device=device)
-    jit_model = torch.jit.trace(model, example)
+    with torch.no_grad():
+        example = torch.zeros(batch_size, 3, 30, 30, dtype=torch.float16).to(device=device)
+        jit_model = torch.jit.trace(model, example)
 
     # warmup
-    torch.cuda.synchronize()
     for _ in range(2):
         example = torch.zeros(batch_size, 3, 30, 30, dtype=torch.float16).to(device=device)
         jit_model(example)
@@ -180,7 +181,5 @@ def main():
     ))
 
 if __name__ == '__main__':
-    """
-    > python bin/dawnbench/cifar10_infer.py --model assets/kakaobrain_custom-resnet9_single_cifar10.pth
-    """
+    # > python bin/dawnbench/cifar10_infer.py --model assets/kakaobrain_custom-resnet9_single_cifar10.pth
     main()
