@@ -104,7 +104,7 @@ def dataloaders(base, download, batch_size, device):
         batch_size=batch_size // 2,
         shuffle=False,
         num_workers=0,
-        pin_memory=True,
+        pin_memory=False,
         drop_last=False
     )
 
@@ -259,8 +259,8 @@ def main():
 
             optimizer.update()
             optimizer.step()
-            model.zero_grad()
-            train_loss_list.append(loss.detach().cpu().numpy() / batch_size)
+            optimizer.zero_grad()
+            train_loss_list.append(loss.detach() / batch_size)
         timer('train')
 
         model.eval()
@@ -283,22 +283,22 @@ def main():
                     logits = logits.view(bs, ncrops, -1).mean(1)
 
                 accuracy = metrics(logits, origin_targets)
-                accuracy_list.append(accuracy.detach().cpu().numpy())
-                test_loss_list.append(loss.detach().cpu().numpy() / batch_size)
+                accuracy_list.append(accuracy.detach())
+                test_loss_list.append(loss.detach() / batch_size)
         timer('test')
         LOGGER.info(
             '[%02d] train loss:%.3f test loss:%.3f accuracy:%.3f lr:%.3f %s',
             epoch,
-            np.average(train_loss_list),
-            np.average(test_loss_list),
-            np.average(accuracy_list),
+            np.average([t.cpu().numpy() for t in train_loss_list]),
+            np.average([t.cpu().numpy() for t in test_loss_list]),
+            np.average([t.cpu().numpy() for t in accuracy_list]),
             optimizer.get_learning_rate() * batch_size,
             timer
         )
         results.append('{epoch}\t{hour:.8f}\t{accuracy:.2f}'.format(**{
             'epoch': epoch,
             'hour': timer.accumulation['train'] / (60 * 60),
-            'accuracy': float(np.average(accuracy_list)) * 100.0
+            'accuracy': float(np.average([t.cpu().numpy() for t in accuracy_list])) * 100.0
         }))
     print('\n'.join(results))
 

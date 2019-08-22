@@ -117,7 +117,7 @@ def build_network(num_class=10):
         torch.nn.AdaptiveMaxPool2d((1, 1)),
         skeleton.nn.Flatten(),
         torch.nn.Linear(128, num_class, bias=False),
-        skeleton.nn.Mul(0.2)
+        # skeleton.nn.Mul(0.2)
     )
 
 

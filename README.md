@@ -19,7 +19,7 @@
 
 #### training multi gpu
 
-In my test, 33 out of 50 runs **reached 94% test set accuracy.** Runtime for 35 epochs is **roughly 38sec** using [Kakao Brain][] [BrainCloud][] V4.XLARGE Type (V100 4GPU, 56CPU, 488GB).
+In my test, 33 out of 50 runs **reached 94% test set accuracy.** Runtime for 35 epochs is **roughly 29sec** using [Kakao Brain][] [BrainCloud][] V4.XLARGE Type (V100 4GPU, 56CPU, 488GB).
 
 | | <sub>trials</sub> | <sub>\> 94% count</sub> | <sub>average</sub> | <sub>median</sub> | <sub>min</sub> | <sub>max</sub> |
 |:---:|---:|---:|---:|---:|---:|---:|
@@ -27,7 +27,7 @@ In my test, 33 out of 50 runs **reached 94% test set accuracy.** Runtime for 35 
 
 #### training single gpu
 
-In my test, 30 out of 50 runs **reached 94% test set accuracy.** Runtime for 25 epochs is **roughly 68sec** using [Kakao Brain][] [BrainCloud][] V1.XLARGE Type (V100 1GPU, 56CPU, 488GB).
+In my test, 30 out of 50 runs **reached 94% test set accuracy.** Runtime for 25 epochs is **roughly 57sec** using [Kakao Brain][] [BrainCloud][] V1.XLARGE Type (V100 1GPU, 56CPU, 488GB).
 
 | | <sub>trials</sub> | <sub>\> 94% count</sub> | <sub>average</sub> | <sub>median</sub> | <sub>min</sub> | <sub>max</sub> |
 |:---:|---:|---:|---:|---:|---:|---:|

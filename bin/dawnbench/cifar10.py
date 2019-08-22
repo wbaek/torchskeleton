@@ -44,6 +44,14 @@ def dataloaders(base, download, batch_size, device):
         download=download
     )
 
+    post_transform = torchvision.transforms.Compose([
+        torchvision.transforms.ToTensor(),
+        torchvision.transforms.Normalize(
+            mean=(0.4914, 0.4822, 0.4465),
+            std=(0.2471, 0.2435, 0.2616)
+        ),
+    ])
+
     train_dataloader = skeleton.data.FixedSizeDataLoader(
         skeleton.data.TransformDataset(
             skeleton.data.prefetch_dataset(
@@ -51,11 +59,7 @@ def dataloaders(base, download, batch_size, device):
                     train_dataset,
                     transform=torchvision.transforms.Compose([
                         skeleton.data.transforms.Pad(2),
-                        torchvision.transforms.ToTensor(),
-                        torchvision.transforms.Normalize(
-                            mean=(0.4914, 0.4822, 0.4465),
-                            std=(0.2471, 0.2435, 0.2616)
-                        ),
+                        post_transform
                     ]),
                     index=0
                 ),
@@ -82,12 +86,17 @@ def dataloaders(base, download, batch_size, device):
             skeleton.data.TransformDataset(
                 test_dataset,
                 transform=torchvision.transforms.Compose([
+                    # skeleton.data.transforms.Pad(4),
+                    # torchvision.transforms.ToPILImage(),
+                    # torchvision.transforms.TenCrop(32),
+                    # torchvision.transforms.Lambda(
+                    #     lambda tensors: torch.stack([
+                    #         post_transform(tensor) for tensor in tensors
+                    #     ], dim=0)
+                    # )
+
                     torchvision.transforms.CenterCrop((30, 30)),
-                    torchvision.transforms.ToTensor(),
-                    torchvision.transforms.Normalize(
-                        mean=(0.4914, 0.4822, 0.4465),
-                        std=(0.2471, 0.2435, 0.2616)
-                    ),
+                    post_transform,
                     torchvision.transforms.Lambda(
                         lambda tensor: torch.stack([
                             tensor, torch.flip(tensor, dims=[-1])
@@ -127,7 +136,7 @@ class Residual(torch.nn.Module):
         super(Residual, self).__init__()
         self.module = module
 
-    def forawrd(self, x):
+    def forward(self, x):
         return x + self.module(x)
 
 
@@ -201,6 +210,7 @@ def main():
             # torch.nn.init.xavier_uniform_(module.weight, gain=1.)
 
     criterion = torch.nn.CrossEntropyLoss(reduction='sum')
+    # criterion = skeleton.nn.CrossEntropyLabelSmooth(num_classes=10, epsilon=1e-3, reduction='sum')
     metrics = skeleton.nn.Accuracy(1)
 
     lr_scheduler = skeleton.optim.get_change_scale(
@@ -251,11 +261,11 @@ def main():
             logits, loss = model(inputs, targets)
 
             loss.sum().backward()
+            train_loss_list.append(loss.detach() / batch_size)
 
             optimizer.update()
             optimizer.step()
-            model.zero_grad()
-            train_loss_list.append(loss.detach().cpu().numpy() / batch_size)
+            optimizer.zero_grad()
         timer('train')
 
         model.eval()
@@ -278,22 +288,22 @@ def main():
                     logits = logits.view(bs, ncrops, -1).mean(1)
 
                 accuracy = metrics(logits, origin_targets)
-                accuracy_list.append(accuracy.detach().cpu().numpy())
-                test_loss_list.append(loss.detach().cpu().numpy() / batch_size)
+                accuracy_list.append(accuracy.detach())
+                test_loss_list.append(loss.detach() / batch_size)
         timer('test')
         LOGGER.info(
             '[%02d] train loss:%.3f test loss:%.3f accuracy:%.3f lr:%.3f %s',
             epoch,
-            np.average(train_loss_list),
-            np.average(test_loss_list),
-            np.average(accuracy_list),
+            np.average([t.cpu().numpy() for t in train_loss_list]),
+            np.average([t.cpu().numpy() for t in test_loss_list]),
+            np.average([t.cpu().numpy() for t in accuracy_list]),
             optimizer.get_learning_rate() * batch_size,
             timer
         )
         results.append('{epoch}\t{hour:.8f}\t{accuracy:.2f}'.format(**{
             'epoch': epoch,
             'hour': timer.accumulation['train'] / (60 * 60),
-            'accuracy': float(np.average(accuracy_list)) * 100.0
+            'accuracy': float(np.average([t.cpu().numpy() for t in accuracy_list])) * 100.0
         }))
     print('\n'.join(results))
     torch.save(model.state_dict(), 'assets/kakaobrain_custom-resnet9_single_cifar10.pth')

@@ -39,7 +39,7 @@ class Cutout:
         x2 = np.clip(x + self.width // 2, 0, w)
 
         mask[y1: y2, x1: x2] = 0.
-        mask = torch.from_numpy(mask)
+        mask = torch.from_numpy(mask).to(device=image.device, dtype=image.dtype)
         mask = mask.expand_as(image)
         image *= mask
         return image
