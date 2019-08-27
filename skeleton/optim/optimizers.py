@@ -19,6 +19,30 @@ class ScheduledOptimizer:
 
         self._optimizer = optimizer(parameters, **self.update_params(0))
 
+    def params(self):
+        params = self.update_params()
+        flatten_params = []
+        for key, value in params.items():
+            if isinstance(value, (list, tuple)):
+                for i, v in enumerate(value):
+                    if isinstance(v, (int, float)):
+                        flatten_params.append(('{}_{}'.format(key, i), v))
+                    else:
+                        LOGGER.warning('[ScheduledOptimizer.params] not support value type (%s:%s)', key, str(value))
+
+            elif isinstance(value, dict):
+                for i, v in value.items():
+                    if isinstance(v, (int, float)):
+                        flatten_params.append(('{}_{}'.format(key, i), v))
+                    else:
+                        LOGGER.warning('[ScheduledOptimizer.params] not support value type (%s:%s)', key, str(value))
+
+            elif isinstance(value, (int, float)):
+                flatten_params.append((key, value))
+            else:
+                LOGGER.warning('[ScheduledOptimizer.params] not support value type (%s:%s)', key, str(value))
+        return dict(flatten_params)
+
     def update_params(self, epoch=None, **kwargs):
         return {
             k: v(self.epoch if epoch is None else epoch, **kwargs) if callable(v) else v
