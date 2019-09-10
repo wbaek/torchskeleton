@@ -242,7 +242,7 @@ class StrideConv2d(torch.nn.Module):
         self.op3 = torch.nn.Conv2d(in_channels, out_channels // 4, kernel_size=kernel_size, stride=2, padding=padding, groups=groups)
         self.op4 = torch.nn.Conv2d(in_channels, out_channels // 4, kernel_size=kernel_size, stride=2, padding=padding, groups=groups)
 
-    def __call__(self, x):
+    def forward(self, x):
         # y = self.op(x)
         y = x
         y1 = y[:, :, :, :]
@@ -287,6 +287,7 @@ class Identity2d(torch.nn.Module):
 class Skip2d(torch.nn.Module):
     def __init__(self, in_channels, out_channels, stride=1, affine=True, track_running_stats=True):
         super(Skip2d, self).__init__()
+        self.in_channels, self.out_channels, self.stride = in_channels, out_channels, stride
         if in_channels != out_channels:
             self.op = torch.nn.Sequential(
                 torch.nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride, padding=0, groups=1, bias=False),
@@ -295,14 +296,18 @@ class Skip2d(torch.nn.Module):
         else:
             self.op = Identity2d(stride=stride)
 
-    def __call__(self, x):
+    def forward(self, x):
         return self.op(x)
+
+    def __repr__(self):
+        return 'Skip2d(%d, %d, stride=%s)' % (self.in_channels, self.out_channels, self.stride)
 
 
 class MBConv(torch.nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, expand_ratio=1, affine=True,
                  track_running_stats=True, se_ratio=None, activation=torch.nn.ReLU6(inplace=True)):
         super(MBConv, self).__init__()
+        self.in_channels, self.out_channels, self.kernel_size, self.stride, self.padding, self.sxpand_ratio = in_channels, out_channels, kernel_size, stride, padding, expand_ratio
         inter_channels = int(in_channels * expand_ratio)
         if expand_ratio != 1:
             expand_block = torch.nn.Sequential(
@@ -343,11 +348,14 @@ class MBConv(torch.nn.Module):
             torch.nn.BatchNorm2d(out_channels, affine=affine, track_running_stats=track_running_stats),
         )
 
-    def __call__(self, x):
+    def forward(self, x):
         out = self.op(x)
         if x.shape == out.shape:
             out = out + x
         return out
+
+    def __repr__(self):
+        return 'MBConv(%d, %d, kernel_size=%s, stride=%s, padding=%s, expand_ratio=%s)' % (self.in_channels, self.out_channels, self.kernel_size, self.stride, self.padding, self.sxpand_ratio)
 
 
 class SEBlock(torch.nn.Module):
@@ -369,5 +377,5 @@ class SEBlock(torch.nn.Module):
             MergeProd()
         )
 
-    def __call__(self, x):
+    def forward(self, x):
         return self.op(x)
