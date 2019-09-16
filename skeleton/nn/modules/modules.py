@@ -275,6 +275,17 @@ class SepConv(torch.nn.Module):
         return self.op(x)
 
 
+class Zero2d(torch.nn.Module):
+    def __init__(self, stride=1):
+        super(Zero2d, self).__init__()
+        self.stride = stride
+
+    def forward(self, x):
+        if self.stride == 1:
+            return x.mul(0.)
+        return x[:, :, ::self.stride, ::self.stride].mul(0.)
+
+
 class Identity2d(torch.nn.Module):
     def __init__(self, stride=1):
         super(Identity2d, self).__init__()
