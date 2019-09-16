@@ -23,6 +23,8 @@ import torchvision
 from torchvision.datasets.utils import check_integrity, download_url
 
 
+# copy ILSVRC/ImageSets/CLS-LOC/train_cls.txt to ./root/
+# to skip os walk (it's too slow) using ILSVRC/ImageSets/CLS-LOC/train_cls.txt file
 class ImageNet(torchvision.datasets.ImageFolder):
     """`ImageNet <http://image-net.org/>`_ 2012 Classification Dataset.
 
