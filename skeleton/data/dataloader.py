@@ -87,17 +87,17 @@ class PrefetchDataLoader:
 
         with torch.cuda.stream(self.stream):
             if isinstance(self.next_data, torch.Tensor):
+                self.next_data = self.next_data.to(dtype=self.dtype, device=self.device, non_blocking=True)
                 if self.contiguous:
                     self.next_data = self.next_data.contiguous()
-                self.next_data = self.next_data.to(dtype=self.dtype, device=self.device, non_blocking=True)
             elif isinstance(self.next_data, (list, tuple)):
+                self.next_data = [
+                    t.to(dtype=self.dtype, device=self.device, non_blocking=True) if t.is_floating_point() else t.to(device=self.device, non_blocking=True) for t in self.next_data
+                ]
                 if self.contiguous:
                     self.next_data = [
                         t.contiguous() for t in self.next_data
                     ]
-                self.next_data = [
-                    t.to(dtype=self.dtype, device=self.device, non_blocking=True) if t.is_floating_point() else t.to(device=self.device, non_blocking=True) for t in self.next_data
-                ]
 
     def __iter__(self):
         self.iter = iter(self.loader)

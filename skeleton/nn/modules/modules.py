@@ -257,6 +257,21 @@ class Swish(torch.nn.Module):
         return x * torch.sigmoid(x)
 
 
+class Residual(torch.nn.Module):
+    def __init__(self, module, residual=True):
+        super(Residual, self).__init__()
+        self.module = module
+        self.residual = residual
+
+    def forward(self, x):
+        if self.residual:
+            return x + self.module(x)
+        return self.module(x)
+
+    def __repr__(self):
+        return 'Residual(%s, residual=%s)' % (self.moduel, 'True' if self.residual else 'False')
+
+
 class SepConv(torch.nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride, padding, affine=True, track_running_stats=True):
         super(SepConv, self).__init__()
