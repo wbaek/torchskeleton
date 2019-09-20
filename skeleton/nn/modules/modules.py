@@ -257,6 +257,24 @@ class Swish(torch.nn.Module):
         return x * torch.sigmoid(x)
 
 
+class TranslatedReLU(torch.nn.Module):
+    def __init__(self, delta=-0.75, inplace=False):
+        super(TranslatedReLU, self).__init__()
+        self.delta = delta
+        self.inplace = inplace
+
+    def forward(self, input):
+        if self.inplace:
+            result = torch.threshold_(input, self.delta, self.delta)
+        else:
+            result = torch.threshold(input, self.delta, self.delta)
+        return result
+
+    def extra_repr(self):
+        inplace_str = ', inplace=True' if self.inplace else ''
+        return 'delta={}{}'.format(self.delta, inplace_str)
+
+
 class SepConv(torch.nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride, padding, affine=True, track_running_stats=True):
         super(SepConv, self).__init__()

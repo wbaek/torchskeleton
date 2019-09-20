@@ -36,6 +36,12 @@ def get_piecewise(knots, vals):
     return schedule
 
 
+def get_lambda_scheduler(fn):
+    def schedule(e, **kwargs):
+        return fn(e)
+    return schedule
+
+
 def get_step_scheduler(init_lr, step_size, gamma=0.1, scheduler=None):
     def schedule(e, **kwargs):
         lr = init_lr
