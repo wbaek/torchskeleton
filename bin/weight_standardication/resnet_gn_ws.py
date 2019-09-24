@@ -37,10 +37,10 @@ class ConvWS2d(nn.Conv2d):
 nn.Conv2d = ConvWS2d
 
 
-class GroupNorm(nn.GroupNorm):
+class Group32Norm(nn.GroupNorm):
     def __init__(self, num_channels):
-        super(GroupNorm, self).__init__(num_channels=num_channels, num_groups=32)
-nn.GroupNorm = GroupNorm
+        super(Group32Norm, self).__init__(num_channels=num_channels, num_groups=32)
+nn.GroupNorm = Group32Norm
 
 
 def conv3x3(in_planes, out_planes, stride=1, groups=1, dilation=1):

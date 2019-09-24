@@ -27,7 +27,7 @@ def parse_args():
     parser.add_argument('--seed', type=lambda x: int(x, 0), default=None)
     parser.add_argument('--result-path', type=str, default=None)
 
-    parser.add_argument('--norm-layer', type=str, default='bn', help='[bn|gn-ws')
+    parser.add_argument('--norm-layer', type=str, default='bn', help='[bn|gn|gn-ws]')
 
     parser.add_argument('--batch', type=int, default=128)
     parser.add_argument('--num-gpus', type=int, default=torch.cuda.device_count())
@@ -122,15 +122,16 @@ def main():
     )
     LOGGER.debug('prepared dataloader')
 
-    batch_multiplier = batch_size / 256
+    init_lr = 0.1
     def schedule(epoch):
-        if epoch > 30:
-            return 1.0
+        if epoch < 30:
+            return 1.0 * init_lr
         elif epoch < 60:
-            return 0.1
+            return 0.1 * init_lr
         elif epoch < 80:
-            return 0.01
-        return 0.001
+            return 0.01 * init_lr
+        return 0.001 * init_lr
+    batch_multiplier = batch_size / 256
     lr_scheduler = skeleton.optim.gradual_warm_up(
         skeleton.optim.get_lambda_scheduler(schedule),
         warm_up_epoch=5,
@@ -139,6 +140,8 @@ def main():
 
     if args.norm_layer in ['bn', 'batchnorm']:
         model = torchvision.models.resnet.resnet101(pretrained=False)
+    elif args.norm_layer in ['gn', 'groupnorm']:
+        model = torchvision.models.resnet.resnet101(pretrained=False, norm_layer=resnet_gn_ws.Group32Norm)
     elif args.norm_layer in ['gn-ws', 'groupnorm-ws']:
         model = resnet_gn_ws.resnet101(pretrained=False)
     else:
@@ -182,6 +185,7 @@ def main():
     train_iter = iter(train_loader)
     for epoch in range(90):
         metric_hist = []
+        parallel_model.train()
         for step, (inputs, targets) in zip(range(steps_per_epoch), train_iter):
             metrics = parallel_model(inputs, targets)
             metrics['loss'].mean().backward()
@@ -197,6 +201,7 @@ def main():
 
         metric_hist = []
         with torch.no_grad():
+            parallel_model.eval()
             for step, (inputs, targets) in enumerate(test_loader):
                 metrics = parallel_model(inputs, targets)
                 metrics = {key: value for key, value in metrics.items()}
