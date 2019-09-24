@@ -42,14 +42,18 @@ def get_lambda_scheduler(fn):
     return schedule
 
 
-def get_step_scheduler(init_lr, step_size, gamma=0.1, scheduler=None):
+def get_step_scheduler(init_lr, epoch_size=1, gamma=0.1, scheduler=None):
     def schedule(e, **kwargs):
         lr = init_lr
         if scheduler is not None:
             lr = scheduler(e, **kwargs)
-        lr = lr * gamma ** int(e / step_size)
+        lr = lr * gamma ** int(e / epoch_size)
         return lr
     return schedule
+
+
+def get_exponential_decay_scheduler(init_lr, epoch_size=1, factor=0.97, scheduler=None):
+    return get_step_scheduler(init_lr, epoch_size, factor, scheduler)
 
 
 def get_cosine_scheduler(init_lr, maximum_epoch, eta_min=0, scheduler=None):
