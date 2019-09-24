@@ -274,6 +274,20 @@ class TranslatedReLU(torch.nn.Module):
         inplace_str = ', inplace=True' if self.inplace else ''
         return 'delta={}{}'.format(self.delta, inplace_str)
 
+class Residual(torch.nn.Module):
+    def __init__(self, module, residual=True):
+        super(Residual, self).__init__()
+        self.module = module
+        self.residual = residual
+
+    def forward(self, x):
+        if self.residual:
+            return x + self.module(x)
+        return self.module(x)
+
+    def __repr__(self):
+        return 'Residual(%s, residual=%s)' % (self.moduel, 'True' if self.residual else 'False')
+
 
 class SepConv(torch.nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride, padding, affine=True, track_running_stats=True):
@@ -291,6 +305,17 @@ class SepConv(torch.nn.Module):
 
     def forward(self, x):
         return self.op(x)
+
+
+class Zero2d(torch.nn.Module):
+    def __init__(self, stride=1):
+        super(Zero2d, self).__init__()
+        self.stride = stride
+
+    def forward(self, x):
+        if self.stride == 1:
+            return x.mul(0.)
+        return x[:, :, ::self.stride, ::self.stride].mul(0.)
 
 
 class Identity2d(torch.nn.Module):
