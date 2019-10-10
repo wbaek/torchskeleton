@@ -31,6 +31,7 @@ def parse_args():
 
     parser.add_argument('--lr', type=float, default=0.01)
     parser.add_argument('--hypergrad', action='store_true')
+    parser.add_argument('--hypergrad-multi', action='store_true')
 
     parser.add_argument('--download', action='store_true')
     parser.add_argument('--seed', type=lambda x: int(x, 0), default=None)
@@ -162,8 +163,9 @@ def main():
         momentum=0.9,
         weight_decay=5e-4,
         # nesterov=True,
-        hypergrad_lr=(1e-3 * batch_size / 128) if args.hypergrad else 0,
-        hypergrad_momentum=0.9 if args.hypergrad else 0,
+        hypergrad_lr=(1e-2 * batch_size / 128) if args.hypergrad else 0,
+        hypergrad_momentum=0.9 if args.hypergrad and not args.hypergrad_multi else 0,
+        update_multiple=args.hypergrad_multi
     )
 
     class ModelLoss(torch.nn.Module):
