@@ -51,6 +51,8 @@ $ pip install torch torchvision
 * clone and init. the repository
 ```bash
 $ git clone {THIS_REPOSITORY} && cd torchskeleton
+$ git submodule init
+$ git submodule update
 $ pip install -r requirements.txt
 ```
 

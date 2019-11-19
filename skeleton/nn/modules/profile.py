@@ -6,6 +6,7 @@ import logging
 import numpy as np
 import torch
 from torch.nn.modules.conv import _ConvNd
+from torch.nn.modules.batchnorm import _BatchNorm
 
 
 LOGGER = logging.getLogger(__name__)
@@ -29,10 +30,14 @@ class Profiler:
                 module_type = type(module)
                 if not name_filter(str(module_type)):
                     pass
-                elif isinstance(module, _ConvNd):
-                    fn = count_conv_flops
                 elif isinstance(module, torch.nn.Linear):
                     fn = count_linear_flops
+                elif isinstance(module, _ConvNd):
+                    fn = count_conv_flops
+                elif isinstance(module, _BatchNorm):
+                    fn = count_elements_flops
+                elif 'swish' in class_name.lower():
+                    fn = count_elements_flops
                 else:
                     pass
                     # LOGGER.warning('Not implemented for %s', module_type)
@@ -48,8 +53,8 @@ class Profiler:
 
         handles = []
         for name, module in self.module.named_modules():
-            if len(list(module.children())) > 0:  # pylint: disable=len-as-condition
-                continue
+            # if len(list(module.children())) > 0:  # pylint: disable=len-as-condition
+            #     continue
             handle = module.register_forward_hook(get_hook(name))
             handles.append(handle)
 
@@ -103,3 +108,7 @@ def count_linear_flops(linear_module, inputs, outputs):
 
     overall_flops = overall_flops + bias_flops
     return int(overall_flops)
+
+
+def count_elements_flops(module, inputs, outputs):
+    return inputs[0][0].numel()

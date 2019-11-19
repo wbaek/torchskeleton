@@ -33,6 +33,9 @@ class Timer:
 
         return delta
 
+    def throughput(self):
+        return 1. / self.total_time
+
     def __repr__(self):
         results = []
         for key, value in self.accumulation.items():
