@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 import os
+import shutil
 import random
 import platform
 import multiprocessing
@@ -47,3 +48,13 @@ class Environments(NamedTuple):
                'gpu_device: {0.gpu_device}\n' \
                'cuda_version: {0.cuda_version}\n' \
                'cudnn_version: {0.cudnn_version}'.format(self)
+
+
+def save_checkpoint(path, state, is_best=False, filename='checkpoint.pth.tar'):
+    os.makedirs(path, exist_ok=True)
+    torch.save(state, '%s/%s' % (path, filename))
+
+    if is_best:
+        shutil.copyfile(filename, '%s/%s' % (path, 'best.pth.tar'))
+
+
