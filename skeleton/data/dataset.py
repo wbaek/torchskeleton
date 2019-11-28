@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
+import copy
 import logging
 
 import torch
@@ -7,6 +8,24 @@ from torch.utils.data import Dataset
 
 
 LOGGER = logging.getLogger(__name__)
+
+
+class Copy(Dataset):
+    def __init__(self, dataset, index=0):
+        self.dataset = dataset
+        self.index = index
+
+    def __getitem__(self, index):
+        tensors = self.dataset[index]
+        tensors = list(tensors)
+
+        img = tensors[self.index]
+
+        tensors.insert(self.index+1, copy.deepcopy(img))
+        return tuple(tensors)
+
+    def __len__(self):
+        return len(self.dataset)
 
 
 class TransformDataset(Dataset):
@@ -22,8 +41,11 @@ class TransformDataset(Dataset):
         if self.transform is not None:
             if self.index is None:
                 tensors = self.transform(*tensors)
-            else:
+            elif isinstance(self.index, int):
                 tensors[self.index] = self.transform(tensors[self.index])
+            elif isinstance(self.index, list):
+                for idx in self.index:
+                    tensors[idx] = self.transform(tensors[idx])
 
         return tuple(tensors)
 

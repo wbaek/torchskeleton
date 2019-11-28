@@ -19,7 +19,8 @@ class Pad:
         self.mode = mode
 
     def __call__(self, image):
-        return np.pad(image, [(self.border, self.border), (self.border, self.border), (0, 0)], mode=self.mode)
+        img = np.pad(image, [(self.border, self.border), (self.border, self.border), (0, 0)], mode=self.mode)
+        return Image.fromarray(img)
 
 
 class Cutout:
